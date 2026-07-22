@@ -1,0 +1,2494 @@
+---
+const SITE_URL = (Astro.site ? Astro.site.toString() : "https://salihkarakaya.com.tr/").replace(/\/$/, "");
+const pageTitle = "Salih Karakaya — Full-Stack Bilgisayar Mühendisi";
+const pageDescription = "Multi-tenant SaaS ürünleri, AI agent platformları ve RAG sistemleri kuran full-stack mühendis Salih Karakaya'nın portfolyosu.";
+---
+
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{pageTitle}</title>
+  <meta name="description" content={pageDescription} />
+  <link rel="canonical" href={SITE_URL + "/"} />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="theme-color" content="#1D2B53" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={pageDescription} />
+  <meta property="og:url" content={SITE_URL + "/"} />
+  <meta property="og:locale" content="tr_TR" />
+  <meta property="og:locale:alternate" content="en_US" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content={pageTitle} />
+  <meta name="twitter:description" content={pageDescription} />
+
+<style is:global>
+:root {
+  --bg: #FFF1E8; --surface: #FFFFFF; --surface-soft: #F6E4D8;
+  --ink: #1D2B53; --ink-soft: #5F574F;
+  --accent: #FF3E7A; --secondary: #0091D6; --led: #14C15A;
+  --accent-text: #C4185E; --link-text: #00679C;
+  --shadow-hard: rgba(29, 43, 83, 0.28); --notch: 10px;
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #171F3D; --surface: #212a52; --surface-soft: #283163; --ink: #FDF3E9; --ink-soft: #B7B9D6; --accent: #FF6C9C; --secondary: #58C4FF; --led: #38E27C; --accent-text: #FF6C9C; --link-text: #58C4FF; --shadow-hard: rgba(0,0,0,0.45); }
+}
+:root[data-theme="dark"] { --bg: #171F3D; --surface: #212a52; --surface-soft: #283163; --ink: #FDF3E9; --ink-soft: #B7B9D6; --accent: #FF6C9C; --secondary: #58C4FF; --led: #38E27C; --accent-text: #FF6C9C; --link-text: #58C4FF; --shadow-hard: rgba(0,0,0,0.45); }
+:root[data-theme="light"] { --bg: #FFF1E8; --surface: #FFFFFF; --surface-soft: #F6E4D8; --ink: #1D2B53; --ink-soft: #5F574F; --accent: #FF3E7A; --secondary: #0091D6; --led: #14C15A; --accent-text: #C4185E; --link-text: #00679C; --shadow-hard: rgba(29,43,83,0.28); }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+img, canvas { max-width: 100%; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+a { color: var(--link-text); }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px; top: -60px;
+  background: var(--ink); color: var(--bg);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  z-index: 500;
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
+}
+
+:focus-visible {
+  outline: 3px dashed var(--accent);
+  outline-offset: 3px;
+}
+dialog:focus-visible { outline: none; }
+
+.pixel-frame {
+  clip-path: polygon(
+    0 var(--notch), var(--notch) var(--notch), var(--notch) 0,
+    calc(100% - var(--notch)) 0, calc(100% - var(--notch)) var(--notch), 100% var(--notch),
+    100% calc(100% - var(--notch)), calc(100% - var(--notch)) calc(100% - var(--notch)), calc(100% - var(--notch)) 100%,
+    var(--notch) 100%, var(--notch) calc(100% - var(--notch)), 0 calc(100% - var(--notch))
+  );
+  filter: drop-shadow(6px 6px 0 var(--shadow-hard));
+}
+
+.pixel-canvas { display:block; width:100%; height:auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ---------- HERO ---------- */
+.hero {
+  padding: 28px 0 20px;
+  position: relative;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 28px;
+  align-items: center;
+}
+@media (max-width: 780px) {
+  .hero-grid { grid-template-columns: 1fr; }
+}
+.hero-id {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin: 0;
+}
+.hero-name {
+  font-size: clamp(1.9rem, 4vw, 2.7rem);
+  margin: 0;
+  line-height: 1.1;
+  font-family: var(--font-mono);
+}
+.hero-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+}
+.hero-location {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+}
+.hero-hook {
+  margin: 6px 0 4px;
+  max-width: 46ch;
+  font-size: 1rem;
+}
+.hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  border: 2px solid var(--ink);
+}
+.icon-link:hover { background: var(--surface-soft); }
+.icon-glyph { font-family: var(--font-mono); color: var(--accent-text); }
+
+.hero-scene-wrap {
+  position: relative;
+  background: var(--surface);
+  padding: 14px;
+  border: 2px solid var(--ink);
+}
+.scene-controls {
+  position: absolute;
+  top: 22px; right: 22px;
+  z-index: 3;
+}
+.theme-btn {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  width: 34px; height: 34px;
+  cursor: pointer;
+  line-height: 1;
+}
+.theme-btn:hover { background: var(--surface-soft); }
+
+.speech-bubble {
+  position: absolute;
+  left: 14px; right: 14px; top: 8px;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  z-index: 4;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  left: 24px; bottom: -10px;
+  width: 0; height: 0;
+  border: 10px solid transparent;
+  border-top-color: var(--ink);
+  border-bottom: 0;
+}
+.speech-bubble.hidden-bubble {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .speech-bubble { transition: none; }
+}
+
+.avatar-trigger {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  display: block;
+  width: 100%;
+}
+
+/* ---------- ROUTE COMPASS / NAV ---------- */
+.route-compass {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--surface);
+  border-bottom: 2px solid var(--ink);
+}
+.compass-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0;
+  overflow-x: auto;
+}
+.pill-menu {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.pill-btn {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--ink);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.pill-btn:hover { border-color: var(--ink-soft); }
+.pill-btn[aria-current="true"] {
+  border-color: var(--ink);
+  background: var(--surface-soft);
+  color: var(--accent-text);
+}
+.compass-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 4px;
+}
+.compass-dot {
+  width: 9px; height: 9px;
+  background: var(--ink-soft);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.5;
+}
+.compass-dot[aria-current="true"] {
+  background: var(--accent);
+  opacity: 1;
+}
+.compass-spacer { flex: 1 1 auto; min-width: 8px; }
+.mini-avatar-btn {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--surface-soft);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  padding: 5px 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.mini-avatar-btn:hover { background: var(--bg); }
+.mini-avatar-dot {
+  width: 10px; height: 10px;
+  background: var(--accent);
+  display: inline-block;
+}
+.lang-toggle {
+  display: inline-flex;
+  border: 2px solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  flex: none;
+}
+.lang-btn {
+  background: var(--surface);
+  color: var(--ink);
+  border: 0;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+.lang-btn + .lang-btn { border-left: 2px solid var(--ink); }
+.lang-btn[aria-pressed="true"] {
+  background: var(--accent-text);
+  color: var(--surface);
+}
+
+/* ---------- SECTIONS GENERIC ---------- */
+.section {
+  padding: 46px 0;
+  border-bottom: 2px dashed var(--surface-soft);
+}
+.section:last-of-type { border-bottom: 0; }
+#journey { background: var(--surface-soft); }
+.section-head { max-width: 62ch; margin-bottom: 22px; }
+.section-title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.3rem, 3vw, 1.7rem);
+  margin: 0 0 6px;
+}
+.section-sub {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { transition: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+/* ---------- PROJECT SHELF ---------- */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.chip:hover { background: var(--surface-soft); }
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+.tech-filter-pill {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--link-text);
+  color: #fff;
+  padding: 6px 10px;
+  margin-bottom: 18px;
+}
+.tech-filter-pill.active { display: inline-flex; }
+.tech-filter-pill button {
+  background: none;
+  border: 0;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.project-card {
+  background: var(--surface);
+  padding: 16px;
+  min-height: 0;
+}
+.project-card[hidden] { display: none; }
+.project-card summary {
+  cursor: pointer;
+  list-style: none;
+  display: block;
+}
+.project-card summary::-webkit-details-marker { display: none; }
+.card-summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.card-title {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+.card-meta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+}
+.card-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.tech-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  background: var(--surface-soft);
+  color: var(--ink);
+  padding: 2px 7px;
+  border: 1px solid var(--ink-soft);
+}
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border: 1px solid var(--ink);
+}
+.status-badge.new { background: var(--led); color: #06210f; }
+.status-badge.locked { background: var(--surface-soft); color: var(--ink-soft); }
+.card-summary-text { margin: 6px 0 4px; font-size: 0.9rem; }
+.details-toggle-hint {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--link-text);
+}
+.project-card[open] .details-toggle-hint::before { content: "▾ "; }
+.project-card:not([open]) .details-toggle-hint::before { content: "▸ "; }
+.card-detail-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.card-link-row { margin-top: 10px; }
+.card-link {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--link-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.card-link:hover { text-decoration-thickness: 2px; }
+
+.no-matches {
+  display: none;
+  padding: 30px 16px;
+  text-align: center;
+  background: var(--surface);
+  border: 2px dashed var(--ink-soft);
+  font-family: var(--font-mono);
+}
+.no-matches.show { display: block; }
+.no-matches-title { font-size: 1rem; margin: 0 0 6px; }
+.no-matches-body { margin: 0; color: var(--ink-soft); font-size: 0.85rem; }
+
+/* ---------- RESEARCH / BOSS LEVEL ---------- */
+#research { background: var(--surface-soft); }
+.boss-panel {
+  background: var(--surface);
+  padding: 22px;
+}
+.boss-meta-row {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+.boss-tech-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.stat-block { }
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+.stat-bars { display: flex; flex-direction: column; gap: 8px; }
+.stat-bar-row { display: flex; align-items: center; gap: 10px; }
+.stat-bar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--surface-soft);
+  position: relative;
+  overflow: hidden;
+}
+.stat-bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.7s ease;
+}
+.stat-bar-fill.before { background: var(--accent); }
+.stat-bar-fill.after { background: var(--led); }
+@media (prefers-reduced-motion: reduce) {
+  .stat-bar-fill { transition: none; }
+}
+.stat-bar-value {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  width: 64px;
+  text-align: right;
+  flex: none;
+}
+.f1-value {
+  font-family: var(--font-mono);
+  font-size: 2.1rem;
+  margin: 0;
+}
+.flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.flow-box {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  background: var(--surface-soft);
+  border: 2px solid var(--ink);
+  padding: 8px 12px;
+  text-align: center;
+}
+.flow-arrow { color: var(--ink-soft); font-family: var(--font-mono); }
+.result-summary { font-size: 0.92rem; margin: 0 0 14px; }
+.method-details summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--link-text);
+}
+.method-details p { font-size: 0.86rem; margin: 8px 0 0; }
+
+/* ---------- INVENTORY ---------- */
+.tablist { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab-btn {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.tab-btn:hover { background: var(--surface-soft); }
+.tab-btn[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.tabpanel[hidden] { display: none; }
+.skill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.skill-chip {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--surface);
+  border: 2px solid var(--ink-soft);
+  color: var(--ink);
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.skill-chip:hover { border-color: var(--accent-text); color: var(--accent-text); }
+.skill-chip-more {
+  background: var(--surface-soft);
+  border-style: dashed;
+  color: var(--link-text);
+}
+
+/* ---------- JOURNEY ---------- */
+.journey-controls { margin-bottom: 14px; }
+.expand-toggle-btn {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.expand-toggle-btn:hover { background: var(--surface-soft); }
+.journey-list { display: flex; flex-direction: column; gap: 10px; }
+.journey-row {
+  background: var(--surface);
+  padding: 10px 14px;
+}
+.journey-row summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  flex-wrap: wrap;
+}
+.journey-row summary::-webkit-details-marker { display: none; }
+.journey-row summary::before { content: "▸ "; color: var(--ink-soft); }
+.journey-row[open] summary::before { content: "▾ "; }
+.j-role { font-weight: 600; margin: 0; font-size: inherit; font-family: inherit; display: inline; }
+.j-company { color: var(--link-text); }
+.j-dates { color: var(--ink-soft); margin-left: auto; }
+.journey-bullets {
+  margin: 10px 0 2px;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- CHARACTER DIALOG ---------- */
+dialog.character-dialog {
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+  max-width: 560px;
+  width: min(92vw, 560px);
+  max-height: 84vh;
+  overflow: auto;
+}
+dialog.character-dialog::backdrop {
+  background: rgba(20,20,30,0.55);
+}
+.dialog-inner { padding: 22px; }
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dialog-title { font-family: var(--font-mono); font-size: 1.2rem; margin: 0 0 4px; }
+.dialog-sub { margin: 0; color: var(--ink-soft); font-size: 0.85rem; }
+.dialog-close-btn {
+  font-family: var(--font-mono);
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  width: 32px; height: 32px;
+  cursor: pointer;
+  flex: none;
+}
+.dialog-close-btn:hover { background: var(--surface-soft); }
+.stat-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--surface-soft);
+}
+.stat-line-label { color: var(--ink-soft); }
+.cert-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cert-item { display: flex; align-items: center; gap: 10px; }
+.cert-medal {
+  width: 22px; height: 22px;
+  background: var(--accent);
+  flex: none;
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+}
+.cert-text { font-size: 0.86rem; }
+.cert-issuer { color: var(--ink-soft); font-size: 0.78rem; }
+.dialog-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-text);
+  margin: 18px 0 6px;
+}
+.dialog-section-label:first-of-type { margin-top: 4px; }
+
+/* ---------- CONTACT ---------- */
+.contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.contact-btn {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  padding: 14px 18px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 170px;
+}
+.contact-btn:hover { background: var(--accent-text); color: #fff; border-color: var(--accent-text); }
+.contact-btn:active { transform: translate(1px, 1px); }
+@media (prefers-reduced-motion: reduce) {
+  .contact-btn:hover { transition: none; }
+}
+.contact-btn-label { font-size: 0.72rem; color: inherit; opacity: 0.75; }
+.contact-btn-value { font-size: 0.9rem; }
+.contact-closing {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+}
+.footer-note {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  max-width: 60ch;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translate(-50%, 12px);
+  background: var(--ink);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 10px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 200;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+}
+
+footer.site-footer {
+  padding: 18px 0 40px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .project-grid { grid-template-columns: 1fr; }
+  .contact-btn { min-width: 0; flex: 1 1 140px; }
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Skip to content / İçeriğe geç</a>
+
+<noscript>
+  <div style="max-width:640px;margin:32px auto;padding:20px;font-family:sans-serif;line-height:1.6;">
+    <h1 style="margin:0 0 6px;">Salih Karakaya</h1>
+    <p style="margin:0 0 4px;">Full-Stack Bilgisayar Mühendisi · Ataşehir/İstanbul<br>Full-Stack Computer Engineer · Ataşehir, Istanbul</p>
+    <p>Multi-tenant SaaS ürünleri ve AI agent platformları kuran full-stack mühendis. / A full-stack engineer building multi-tenant SaaS products and AI agent platforms.</p>
+    <p>Bitirme tezinde (Prompt Injection Savunması) saldırı başarı oranını %95,19'dan %0,48'e düşürdüm, F1 skoru %83,81. / In my thesis (Prompt Injection Defense) I cut the attack success rate from 95.19% to 0.48%, with an F1 score of 83.81%.</p>
+    <p>
+      <a href="mailto:slhkrkyh@gmail.com">slhkrkyh@gmail.com</a> ·
+      <a href="https://github.com/slhkrkya" target="_blank" rel="noopener noreferrer">github.com/slhkrkya</a> ·
+      <a href="https://www.linkedin.com/in/salih-karakaya-a43818299" target="_blank" rel="noopener noreferrer">linkedin.com/in/salih-karakaya-a43818299</a>
+    </p>
+    <p><em>Bu sayfanın tam interaktif deneyimi (proje filtreleri, canlı sahne, dil geçişi) için JavaScript gerekir. / The full interactive experience (project filters, live scene, language toggle) needs JavaScript.</em></p>
+  </div>
+</noscript>
+
+<header class="hero" id="hero">
+  <div class="container hero-grid">
+    <div class="hero-id">
+      <p class="eyebrow" data-i18n="hero.heading">Merhaba — Ben Salih</p>
+      <h1 class="hero-name" data-i18n="hero.name">Salih Karakaya</h1>
+      <p class="hero-title" data-i18n="hero.title">Full-Stack Bilgisayar Mühendisi</p>
+      <p class="hero-location tabular" data-i18n="hero.location">Ataşehir, İstanbul</p>
+      <p class="hero-hook" data-i18n="hero.hook">Multi-tenant SaaS ürünleri ve AI agent platformları kuran full-stack mühendis.</p>
+      <div class="hero-links" id="hero-links"></div>
+    </div>
+    <div class="hero-scene-wrap pixel-frame">
+      <div class="scene-controls">
+        <button type="button" class="theme-btn" id="theme-toggle-btn" aria-label="Tema değiştir">☀</button>
+      </div>
+      <div class="speech-bubble" id="speech-bubble" data-i18n="hero.bubble">Merhaba, ben Salih. Aşağıda ne yaptığıma bakabilirsin.</div>
+      <button type="button" class="avatar-trigger" id="hero-avatar-btn" data-i18n-aria="nav.characterButtonAriaLabel" aria-label="Karakter sayfasını aç" aria-haspopup="dialog">
+        <canvas class="pixel-canvas" id="scene-canvas" width="1" height="1" aria-hidden="true"></canvas>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="route-compass" id="route-compass" data-i18n-aria="nav.heading" aria-label="Rota Pusulası">
+  <div class="container compass-inner">
+    <div class="pill-menu" id="pill-menu" role="group" aria-label="Bölümler"></div>
+    <div class="compass-dots" id="compass-dots" aria-hidden="true"></div>
+    <div class="compass-spacer"></div>
+    <button type="button" class="mini-avatar-btn" id="nav-character-btn" aria-haspopup="dialog">
+      <span class="mini-avatar-dot" aria-hidden="true"></span>
+      <span data-i18n="nav.characterButton">Karakter</span>
+    </button>
+    <div class="lang-toggle" role="group" aria-label="Dil / Language">
+      <button type="button" class="lang-btn" id="lang-btn-tr" aria-pressed="true">TR</button>
+      <button type="button" class="lang-btn" id="lang-btn-en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main id="main-content">
+  <section class="section" id="projects">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2 class="section-title" data-i18n="projectShelf.heading">Proje Rafı</h2>
+        <p class="section-sub" data-i18n="projectShelf.subheading">Önce ne yaptığıma bak, sonra istersen kim olduğuma.</p>
+      </div>
+      <div class="chip-row reveal" id="filter-chip-row" role="group" aria-label="Proje filtreleri"></div>
+      <div class="tech-filter-pill" id="tech-filter-pill">
+        <span id="tech-filter-label"></span>
+        <button type="button" id="tech-filter-clear" aria-label="Filtreyi temizle">×</button>
+      </div>
+      <div class="project-grid" id="project-grid"></div>
+      <div class="no-matches" id="no-matches" role="status" aria-live="polite">
+        <p class="no-matches-title" data-i18n="projectShelf.noMatches.title">Kayıt bulunamadı</p>
+        <p class="no-matches-body" data-i18n="projectShelf.noMatches.body">Bu filtre kombinasyonuna uyan proje yok. Birkaç çipi kaldırmayı dene.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="research">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2 class="section-title" data-i18n="research.heading">Boss Level</h2>
+        <p class="section-sub" data-i18n="research.subheading">Lisans tezinde en çok bunu önemsedim: saldırı başarı oranını gerçekten düşürmek.</p>
+      </div>
+      <div class="boss-panel pixel-frame reveal">
+        <div class="boss-meta-row tabular">
+          <span data-i18n="research.meta.type">Lisans Tezi</span>
+          <span data-i18n="research.meta.team">2 kişilik araştırma</span>
+          <span data-i18n="research.meta.dates">Ocak–Haziran 2026</span>
+        </div>
+        <div class="boss-tech-row" id="research-tech-row"></div>
+        <div class="flow-row" id="research-flow-row"></div>
+        <div class="stat-grid">
+          <div class="stat-block">
+            <p class="stat-label" data-i18n="research.stats.attackSuccessRate.label">Saldırı Başarı Oranı</p>
+            <div class="stat-bars">
+              <div class="stat-bar-row">
+                <span class="stat-bar-track"><span class="stat-bar-fill before tabular" id="bar-before" style="width:95.19%"></span></span>
+                <span class="stat-bar-value tabular" id="val-before">%95,19</span>
+              </div>
+              <div class="stat-bar-row">
+                <span class="stat-bar-track"><span class="stat-bar-fill after tabular" id="bar-after" style="width:0.48%"></span></span>
+                <span class="stat-bar-value tabular" id="val-after">%0,48</span>
+              </div>
+            </div>
+          </div>
+          <div class="stat-block">
+            <p class="stat-label" data-i18n="research.stats.f1Score.label">F1 Skoru</p>
+            <p class="f1-value tabular" id="val-f1">%83,81</p>
+          </div>
+        </div>
+        <p class="result-summary" data-i18n="research.resultSummary">BiLSTM ön-filtre ve DefensiveToken sertleştirmesiyle saldırı başarı oranı %95,19'dan %0,48'e düştü, F1 skoru %83,81'e ulaştı.</p>
+        <details class="method-details">
+          <summary data-i18n="research.methodAccordion.label">Yöntem detayları</summary>
+          <p data-i18n="research.methodAccordion.body">Model yeniden eğitimi gerektirmeyen iki aşamalı bir savunma mimarisi kurduk.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="inventory">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2 class="section-title" data-i18n="inventory.heading">Envanter</h2>
+        <p class="section-sub" data-i18n="inventory.subheading">Teknoloji adı değil, kanıt: her etikete tıkla, onu kullandığım projeye git.</p>
+      </div>
+      <div class="tablist reveal" id="skill-tablist" role="tablist" aria-label="Envanter kategorileri"></div>
+      <div id="skill-panels"></div>
+    </div>
+  </section>
+
+  <section class="section" id="journey">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2 class="section-title" data-i18n="journey.heading">Yolculuk Günlüğü</h2>
+        <p class="section-sub" data-i18n="journey.subheading">Kronoloji burada, ama küçük harflerle. Detay istersen aç.</p>
+      </div>
+      <div class="journey-controls reveal">
+        <button type="button" class="expand-toggle-btn" id="journey-expand-toggle">Tümünü Genişlet</button>
+      </div>
+      <div class="journey-list" id="journey-list"></div>
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2 class="section-title" data-i18n="contact.heading">İletişim</h2>
+        <p class="section-sub" data-i18n="contact.subheading">Tek adımda ulaşabilirsin; telefon yerine e-posta veya LinkedIn en hızlısı.</p>
+      </div>
+      <div class="contact-actions reveal" id="contact-actions"></div>
+      <p class="contact-closing reveal" data-i18n="contact.closingLine">Buraya kadar okuduysan teşekkürler — konuşmaya hazırım.</p>
+      <p class="footer-note reveal" data-i18n="contact.footerNote">Telefon numarası bilerek yok — en hızlı geri dönüş e-posta veya LinkedIn üzerinden.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>&copy; 2026 Salih Karakaya</span>
+  </div>
+</footer>
+
+<dialog class="character-dialog" id="character-dialog" aria-labelledby="character-dialog-title">
+  <div class="dialog-inner">
+    <div class="dialog-head">
+      <div>
+        <h2 class="dialog-title" id="character-dialog-title" data-i18n="characterSheet.heading">Karakter Sayfası</h2>
+        <p class="dialog-sub" data-i18n="characterSheet.subheading">Eğitim, dil seviyesi ve sertifikalar — meraklısına.</p>
+      </div>
+      <button type="button" class="dialog-close-btn" id="dialog-close-btn" data-i18n-aria="characterSheet.closeLabel" aria-label="Kapat">×</button>
+    </div>
+    <p class="dialog-section-label" data-i18n="characterSheet.education.label">Eğitim</p>
+    <div class="stat-line"><span class="stat-line-label" id="edu-school-label">Gazi Üniversitesi</span><span id="edu-degree">Bilgisayar Mühendisliği</span></div>
+    <div class="stat-line"><span class="stat-line-label">GPA</span><span class="tabular" id="edu-gpa">3.11/4.00</span></div>
+    <div class="stat-line"><span class="stat-line-label" id="edu-grad-label">Mezuniyet</span><span class="tabular" id="edu-grad">Haziran 2026</span></div>
+    <p class="dialog-section-label" data-i18n="characterSheet.language.label">Dil</p>
+    <div class="stat-line"><span class="stat-line-label" id="lang-name">İngilizce</span><span id="lang-level">B2</span></div>
+    <p class="dialog-section-label" data-i18n="characterSheet.certificatesLabel">Sertifikalar</p>
+    <ul class="cert-list" id="cert-list"></ul>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="visually-hidden" id="a11y-announcer" aria-live="polite"></div>
+
+<script is:inline>
+(function () {
+"use strict";
+
+var content = {
+  "tr": {
+    "meta": {
+      "title": "Salih Karakaya — Full-Stack Bilgisayar Mühendisi",
+      "description": "Multi-tenant SaaS ürünleri, AI agent platformları ve RAG sistemleri kuran full-stack mühendis Salih Karakaya'nın portfolyosu.",
+      "htmlLang": "tr"
+    },
+    "hero": {
+      "heading": "Merhaba — Ben Salih",
+      "name": "Salih Karakaya",
+      "title": "Full-Stack Bilgisayar Mühendisi",
+      "location": "Ataşehir, İstanbul",
+      "hook": "Multi-tenant SaaS ürünleri ve AI agent platformları kuran full-stack mühendis.",
+      "bubble": "Merhaba, ben Salih. Aşağıda ne yaptığıma bakabilirsin.",
+      "links": {
+        "emailLabel": "E-posta",
+        "email": "slhkrkyh@gmail.com",
+        "githubLabel": "GitHub",
+        "github": "github.com/slhkrkya",
+        "linkedinLabel": "LinkedIn",
+        "linkedin": "linkedin.com/in/salih-karakaya-a43818299"
+      },
+      "themeToggleToDark": "Karanlık temaya geç",
+      "themeToggleToLight": "Aydınlık temaya geç"
+    },
+    "common": { "newTabHint": "(yeni sekmede açılır)" },
+    "nav": {
+      "heading": "Rota Pusulası",
+      "items": {
+        "projects": "Projeler",
+        "research": "Araştırma",
+        "inventory": "Envanter",
+        "journey": "Yolculuk",
+        "contact": "İletişim"
+      },
+      "characterButton": "Karakter",
+      "characterButtonAriaLabel": "Karakter sayfasını aç",
+      "langToggle": {
+        "trLabel": "TR",
+        "enLabel": "EN",
+        "ariaLabel": "Dili değiştir",
+        "announce": "Dil: Türkçe"
+      }
+    },
+    "projectShelf": {
+      "heading": "Proje Rafı",
+      "subheading": "Önce ne yaptığıma bak, sonra istersen kim olduğuma.",
+      "filters": {
+        "all": "Tümü",
+        "backend": "Backend",
+        "frontend": "Frontend",
+        "architectureSecurity": "Mimari-Güvenlik",
+        "aiml": "AI-ML",
+        "workProjects": "İş Projeleri",
+        "openSource": "Açık Kaynak",
+        "academic": "Akademik"
+      },
+      "noMatches": {
+        "title": "Kayıt bulunamadı",
+        "body": "Bu filtre kombinasyonuna uyan proje yok. Birkaç çipi kaldırmayı dene."
+      },
+      "badges": {
+        "newActive": "YENİ / AKTİF",
+        "workBadge": "ÜRETİMDE — KOD ÖZEL"
+      },
+      "openSourceLinkLabel": "GitHub'da görüntüle",
+      "detailsToggleLabel": "Detaylar",
+      "projects": [
+        {
+          "id": "yoder",
+          "title": "YODER Dernek Projesi",
+          "meta": "Mayıs–Haziran 2026 · 4 geliştirici + 1 PM",
+          "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
+          "techBadges": [".NET", "Angular", "PostgreSQL"],
+          "tech": [".NET", "Angular", "PostgreSQL", "Hangfire", "SignalR", "3CX", "WhatsApp/WATI"],
+          "summary": "Bir derneğin üyelik, bağış ve iletişim süreçlerini tek platformda topladım.",
+          "details": [
+            "MutluCell SMS entegrasyonunu AddRange + UnitOfWork deseniyle kurdum; toplu bildirimler tek işlemde güvenle gidiyor.",
+            "3CX rehber senkronizasyonu ve Kumbara modülündeki self-referencing parent-child yapı + harita görselleştirmesiyle bağış ağını görünür kıldım.",
+            "JWT'yi localStorage'dan HttpOnly/SameSite cookie'ye taşıyıp XSS/CSRF riskini azalttım; composite dashboard'u RBAC/PermissionGuard ile yetkiye göre şekillendirdim."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "yz-ajan-platformu",
+          "title": "YZ Ajan Platformu",
+          "meta": "Şubat–Nisan 2026 · 3 kişi",
+          "tags": ["backend", "frontend", "aiml", "workProjects"],
+          "techBadges": ["RAG", "pgvector", "MCP"],
+          "tech": [".NET", "Angular", "pgvector", "RAG", "MCP", "OpenAI", "Anthropic"],
+          "summary": "Sıfırdan bir RAG pipeline kurup şirket içi chatbot'u tek script etiketiyle her siteye gömülebilir hale getirdim.",
+          "details": [
+            "Chunking + embedding + pgvector cosine similarity ile RAG pipeline'ını uçtan uca kurdum.",
+            "JWT ve Angular signals ile canlı embed akışını yönettim; SSE streaming + Bearer forwarding proxy ile gerçek zamanlı yanıt sağladım.",
+            "Widget'ı Web Component olarak paketleyip OpenAI-compatible ve AG-UI çift kanalını birlikte destekledim."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "otel-mcp",
+          "title": "Otel Rezervasyon ve MCP Katmanı",
+          "meta": "Ocak 2025–Mart 2026 · 2 kişi",
+          "tags": ["backend", "architectureSecurity", "aiml", "workProjects"],
+          "techBadges": ["MCP", "CQRS", "MediatR"],
+          "tech": [".NET", "Angular", "MCP", "CQRS", "MediatR", "EF Core"],
+          "summary": "Otel rezervasyon sistemini MCP protokolüyle AI ajanlarının güvenle kullanabileceği bir katmana bağladım.",
+          "details": [
+            "CQRS uyumlu MCP tool katmanını 6 tool sınıfıyla kurdum, her çağrı MediatR üzerinden dispatch ediliyor.",
+            "Her araç çağrısında otel bağlamını doğrulayan bir kontrol ekledim; yanlış otel üzerinde işlem yapılmasının önüne geçtim.",
+            "AdminApprovals onay akışıyla kritik işlemleri insan onayından geçirdim."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "ays",
+          "title": "AYS — Rezidans/AWP Yönetim Sistemi",
+          "meta": "Eylül–Aralık 2025 · Staj · 3 kişi",
+          "tags": ["backend", "frontend", "workProjects"],
+          "techBadges": [".NET", "Angular", "Hangfire"],
+          "tech": [".NET", "Angular", "MSSQL", "Hangfire"],
+          "summary": "Rezidans yönetim sisteminde proje yöneticiliği yaptım, SRS ve fizibilite raporundan koda kadar süreci yönettim.",
+          "details": [
+            "SRS ve fizibilite raporunu hazırlayıp MS Project Gantt ve Jira ile takip ettim.",
+            "20.000 kullanıcılık Excel aktarımında yaşanan çökme sorununu chunk tabanlı async Hangfire job'a taşıyarak çözdüm.",
+            "2 kişilik geliştirici ekibini yönettim."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "ai-cpp",
+          "title": "AI_Cpp",
+          "meta": "C++ · Kişisel proje",
+          "tags": ["backend", "aiml", "openSource"],
+          "badge": "newActive",
+          "techBadges": ["C++", "Ollama", "LLM"],
+          "tech": ["C++", "Ollama", "Bulut LLM'ler"],
+          "summary": "Terminalde çalışan bir AI kodlama asistanı yazdım: yerel (Ollama) ve bulut LLM'leri aynı arayüzden kullanabiliyor.",
+          "details": [
+            "Dosya ve shell araçlarını izin sistemiyle kontrollü hale getirdim; asistan izinsiz hiçbir şey çalıştırmıyor.",
+            "Plan modu ve paralel sub-agent workflow motoruyla karmaşık görevleri adımlara bölüp eşzamanlı yürütüyor."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/AI_Cpp" }
+        },
+        {
+          "id": "randevucore",
+          "title": "RandevuCore",
+          "meta": ".NET 9 + Angular · Kişisel proje",
+          "tags": ["backend", "frontend", "openSource"],
+          "techBadges": [".NET 9", "Angular", "Tailwind v4"],
+          "tech": [".NET 9", "Angular", "Tailwind v4", "MSSQL", "MediaPipe"],
+          "summary": "Görüntülü toplantı, ekran paylaşımı, sohbet ve whiteboard'ı tek bir randevu sisteminde birleştirdim.",
+          "details": [
+            "MediaPipe desteğiyle görüntülü görüşme deneyimini zenginleştirdim.",
+            "Whiteboard ve chat'i aynı oturumda gerçek zamanlı senkron çalıştırdım."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/RandevuCore" }
+        },
+        {
+          "id": "lunara",
+          "title": "Lunara",
+          "meta": "Java · Kişisel proje",
+          "tags": ["backend", "architectureSecurity", "openSource"],
+          "techBadges": ["Java", "WebSocket", "RabbitMQ"],
+          "tech": ["Java", "WebSocket", "RabbitMQ", "SMTP", "JWT"],
+          "summary": "Discord'a benzer gerçek zamanlı bir iletişim sisteminin backend'ini mikroservis mimarisiyle kurdum.",
+          "details": [
+            "WebSocket ile anlık mesajlaşmayı, RabbitMQ ile servisler arası asenkron iletişimi sağladım.",
+            "JWT ile kimlik doğrulamayı, SMTP ile bildirim akışını tamamladım."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/Lunara" }
+        },
+        {
+          "id": "wetrackx",
+          "title": "WeTrackX",
+          "meta": "TypeScript · Kişisel proje",
+          "tags": ["frontend", "openSource"],
+          "techBadges": ["TypeScript"],
+          "tech": ["TypeScript"],
+          "summary": "Kişisel finans takibi için gelir/gider kategorilendirme ve basit analiz sunan bir araç yazdım.",
+          "details": [
+            "Gelir ve giderleri kategorilere ayırıp basit analizlerle görünür kıldım."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/WeTrackX" }
+        },
+        {
+          "id": "hf-demo",
+          "title": "hf_demo",
+          "meta": "Python · Kişisel proje",
+          "tags": ["aiml", "openSource", "academic"],
+          "techBadges": ["Python", "Hugging Face"],
+          "tech": ["Python", "Hugging Face"],
+          "summary": "Trendyol yorumlarını çekip Hugging Face modelleriyle duygu analizinden geçirdim.",
+          "details": [
+            "Yorum verisini toplayıp hazır Hugging Face modelleriyle duygu/içerik analizi ürettim."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/hf_demo" }
+        }
+      ]
+    },
+    "research": {
+      "heading": "Boss Level",
+      "subheading": "Lisans tezinde en çok bunu önemsedim: saldırı başarı oranını gerçekten düşürmek.",
+      "meta": { "type": "Lisans Tezi", "team": "2 kişilik araştırma", "dates": "Ocak–Haziran 2026" },
+      "tech": ["Python", "PyTorch", "BiLSTM", "Qwen2.5-7B-Instruct", "DefensiveTokens", "Hugging Face Transformers"],
+      "flow": { "steps": ["Girdi", "BiLSTM Ön-Filtre", "DefensiveToken Sertleştirme", "Sonuç"] },
+      "stats": {
+        "attackSuccessRate": { "label": "Saldırı Başarı Oranı", "before": "%95,19", "after": "%0,48" },
+        "f1Score": { "label": "F1 Skoru", "value": "%83,81" }
+      },
+      "resultSummary": "BiLSTM ön-filtre ve DefensiveToken sertleştirmesiyle saldırı başarı oranı %95,19'dan %0,48'e düştü, F1 skoru %83,81'e ulaştı.",
+      "methodAccordion": {
+        "label": "Yöntem detayları",
+        "body": "Model yeniden eğitimi gerektirmeyen iki aşamalı bir savunma mimarisi kurduk: 15.546 örneklik eğitim seti ve 116 örneklik test kümesi üzerinde Qwen2.5-7B-Instruct modeliyle doğrulandı."
+      }
+    },
+    "inventory": {
+      "heading": "Envanter",
+      "subheading": "Teknoloji adı değil, kanıt: her etikete tıkla, onu kullandığım projeye git.",
+      "tabs": {
+        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation"] },
+        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components"] },
+        "architectureSecurity": { "label": "Mimari ve Güvenlik", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log"] },
+        "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
+        "databases": { "label": "Veritabanları", "items": ["PostgreSQL", "SQL Server", "pgvector"] },
+        "tools": { "label": "Araçlar", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Agile/Scrum"] }
+      }
+    },
+    "journey": {
+      "heading": "Yolculuk Günlüğü",
+      "subheading": "Kronoloji burada, ama küçük harflerle. Detay istersen aç.",
+      "expandAllLabel": "Tümünü Genişlet",
+      "collapseAllLabel": "Tümünü Daralt",
+      "entries": [
+        {
+          "id": "arca-fulltime",
+          "role": "Bilgisayar Mühendisi (Tam Zamanlı)",
+          "company": "ARCA",
+          "location": "Ankara",
+          "dates": "Şubat 2026 – Halen",
+          "bullets": [
+            "Multi-tenant SaaS ürünleri, bir AI agent platformu ve üçüncü taraf entegrasyonlar üzerinde uçtan uca full-stack geliştirme yapıyorum.",
+            "Üretim ortamında CORS yapılandırmasından FileZilla ile deploy'a kadar yayına alma sürecini sahipleniyorum.",
+            "Şirket içi chatbot widget mimarisini sıfırdan kurup uçtan uca sahiplendim.",
+            "Temmuz 2026'dan itibaren Planora projesinde 4 kişilik ekipte proje yöneticiliği yapıyorum."
+          ]
+        },
+        {
+          "id": "arca-intern",
+          "role": "Bilgisayar Mühendisliği Stajyeri",
+          "company": "ARCA",
+          "location": "Ankara",
+          "dates": "Eylül 2025 – Şubat 2026",
+          "bullets": [
+            "AYS staj projesinde proje yöneticisi olarak SRS ve fizibilite raporunu hazırladım.",
+            "Finans Modülü'nün geliştirmesine katkı sağladım."
+          ]
+        },
+        {
+          "id": "tnc-intern",
+          "role": "Proje Yönetimi Stajyeri",
+          "company": "TNC Group & SCA Social",
+          "location": "İstanbul",
+          "dates": "Haziran – Temmuz 2025",
+          "bullets": [
+            "AI ve veri bilimi girişimleri için PID, Gantt ve BT hukuku uyumluluk dokümanları hazırladım.",
+            "Kapsam, risk ve teslimat takibinde ekibe destek oldum."
+          ]
+        }
+      ]
+    },
+    "characterSheet": {
+      "heading": "Karakter Sayfası",
+      "subheading": "Eğitim, dil seviyesi ve sertifikalar — meraklısına.",
+      "closeLabel": "Kapat",
+      "education": { "label": "Eğitim", "school": "Gazi Üniversitesi", "degree": "Bilgisayar Mühendisliği", "graduation": "Haziran 2026", "gpa": "3.11/4.00" },
+      "language": { "label": "Dil", "name": "İngilizce", "level": "B2" },
+      "certificatesLabel": "Sertifikalar",
+      "certificates": [
+        { "title": "Çevik Proje Yönetimi", "issuer": "BTK Akademi", "year": "2026" },
+        { "title": "Girişimcilik Hukuku ve Fikri Mülkiyet Hakları", "issuer": "Ankara Kalkınma Ajansı", "year": "2025" },
+        { "title": "Proje Yönetimi Staj Sertifikası", "issuer": "TNC Group", "year": "2025" }
+      ]
+    },
+    "contact": {
+      "heading": "İletişim",
+      "subheading": "Tek adımda ulaşabilirsin; telefon yerine e-posta veya LinkedIn en hızlısı.",
+      "emailButton": { "label": "E-posta", "value": "slhkrkyh@gmail.com" },
+      "githubButton": { "label": "GitHub", "value": "github.com/slhkrkya" },
+      "linkedinButton": { "label": "LinkedIn", "value": "linkedin.com/in/salih-karakaya-a43818299" },
+      "copiedToast": "Kopyalandı!",
+      "closingLine": "Buraya kadar okuduysan teşekkürler — konuşmaya hazırım.",
+      "footerNote": "Telefon numarası bilerek yok — en hızlı geri dönüş e-posta veya LinkedIn üzerinden."
+    }
+  },
+  "en": {
+    "meta": {
+      "title": "Salih Karakaya — Full-Stack Computer Engineer",
+      "description": "Portfolio of Salih Karakaya, a full-stack engineer building multi-tenant SaaS products, AI agent platforms, and RAG systems.",
+      "htmlLang": "en"
+    },
+    "hero": {
+      "heading": "Hi — I'm Salih",
+      "name": "Salih Karakaya",
+      "title": "Full-Stack Computer Engineer",
+      "location": "Ataşehir, Istanbul",
+      "hook": "A full-stack engineer building multi-tenant SaaS products and AI agent platforms.",
+      "bubble": "Hi, I'm Salih. Scroll down to see what I've built.",
+      "links": {
+        "emailLabel": "Email",
+        "email": "slhkrkyh@gmail.com",
+        "githubLabel": "GitHub",
+        "github": "github.com/slhkrkya",
+        "linkedinLabel": "LinkedIn",
+        "linkedin": "linkedin.com/in/salih-karakaya-a43818299"
+      },
+      "themeToggleToDark": "Switch to dark theme",
+      "themeToggleToLight": "Switch to light theme"
+    },
+    "common": { "newTabHint": "(opens in new tab)" },
+    "nav": {
+      "heading": "Route Compass",
+      "items": {
+        "projects": "Projects",
+        "research": "Research",
+        "inventory": "Inventory",
+        "journey": "Journey",
+        "contact": "Contact"
+      },
+      "characterButton": "Character",
+      "characterButtonAriaLabel": "Open character sheet",
+      "langToggle": { "trLabel": "TR", "enLabel": "EN", "ariaLabel": "Switch language", "announce": "Language: English" }
+    },
+    "projectShelf": {
+      "heading": "Project Shelf",
+      "subheading": "See what I've built first — who I am can wait.",
+      "filters": {
+        "all": "All",
+        "backend": "Backend",
+        "frontend": "Frontend",
+        "architectureSecurity": "Architecture-Security",
+        "aiml": "AI-ML",
+        "workProjects": "Work Projects",
+        "openSource": "Open Source",
+        "academic": "Academic"
+      },
+      "noMatches": {
+        "title": "No matches",
+        "body": "No project matches this filter combination. Try removing a chip or two."
+      },
+      "badges": { "newActive": "NEW / ACTIVE", "workBadge": "IN PRODUCTION — CODE PRIVATE" },
+      "openSourceLinkLabel": "View on GitHub",
+      "detailsToggleLabel": "Details",
+      "projects": [
+        {
+          "id": "yoder",
+          "title": "YODER Association Platform",
+          "meta": "May–June 2026 · 4 developers + 1 PM",
+          "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
+          "techBadges": [".NET", "Angular", "PostgreSQL"],
+          "tech": [".NET", "Angular", "PostgreSQL", "Hangfire", "SignalR", "3CX", "WhatsApp/WATI"],
+          "summary": "Brought a nonprofit's membership, donations, and communications into one platform.",
+          "details": [
+            "Built the MutluCell SMS integration on an AddRange + UnitOfWork pattern, so bulk notifications go out safely in a single transaction.",
+            "Synced the 3CX phone directory and built the Kumbara (donation box) module on a self-referencing parent-child structure with map visualization, making the donation network visible.",
+            "Moved JWT from localStorage to an HttpOnly/SameSite cookie to cut XSS/CSRF risk, and shaped the composite dashboard endpoint with RBAC/PermissionGuard so each role sees only what it should."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "yz-ajan-platformu",
+          "title": "AI Agent Platform",
+          "meta": "February–April 2026 · 3 people",
+          "tags": ["backend", "frontend", "aiml", "workProjects"],
+          "techBadges": ["RAG", "pgvector", "MCP"],
+          "tech": [".NET", "Angular", "pgvector", "RAG", "MCP", "OpenAI", "Anthropic"],
+          "summary": "Built a RAG pipeline from scratch and turned an internal chatbot into a single-script-tag widget any site can embed.",
+          "details": [
+            "Built the RAG pipeline end to end: chunking, embedding, and pgvector cosine similarity.",
+            "Ran the live embed flow on JWT and Angular signals, with SSE streaming and a Bearer-forwarding proxy for real-time responses.",
+            "Packaged the widget as a Web Component supporting both an OpenAI-compatible channel and AG-UI side by side."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "otel-mcp",
+          "title": "Hotel Reservation & MCP Layer",
+          "meta": "January 2025–March 2026 · 2 people",
+          "tags": ["backend", "architectureSecurity", "aiml", "workProjects"],
+          "techBadges": ["MCP", "CQRS", "MediatR"],
+          "tech": [".NET", "Angular", "MCP", "CQRS", "MediatR", "EF Core"],
+          "summary": "Connected a hotel reservation system to a layer AI agents can safely call through MCP.",
+          "details": [
+            "Built a CQRS-compliant MCP tool layer with 6 tool classes, each call dispatched through MediatR.",
+            "Added a hotel-context check on every tool call so an agent can't act on the wrong property.",
+            "Routed critical actions through an AdminApprovals workflow so a human signs off before they take effect."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "ays",
+          "title": "AYS — Residence/AWP Management System",
+          "meta": "September–December 2025 · Internship · 3 people",
+          "tags": ["backend", "frontend", "workProjects"],
+          "techBadges": [".NET", "Angular", "Hangfire"],
+          "tech": [".NET", "Angular", "MSSQL", "Hangfire"],
+          "summary": "Managed this residence management project, owning it from the SRS and feasibility report through to code.",
+          "details": [
+            "Wrote the SRS and feasibility report and tracked delivery with MS Project Gantt charts and Jira.",
+            "Fixed a crash affecting a 20,000-user Excel import by moving it to a chunk-based async Hangfire job.",
+            "Led a two-person developer team."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
+          "id": "ai-cpp",
+          "title": "AI_Cpp",
+          "meta": "C++ · Personal project",
+          "tags": ["backend", "aiml", "openSource"],
+          "badge": "newActive",
+          "techBadges": ["C++", "Ollama", "LLM"],
+          "tech": ["C++", "Ollama", "Cloud LLMs"],
+          "summary": "Wrote a terminal AI coding assistant that runs local (Ollama) and cloud LLMs behind the same interface.",
+          "details": [
+            "Put file and shell tools behind a permission system, so the assistant never runs anything without approval.",
+            "Added a plan mode and a parallel sub-agent workflow engine that breaks complex tasks into steps and runs them concurrently."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/AI_Cpp" }
+        },
+        {
+          "id": "randevucore",
+          "title": "RandevuCore",
+          "meta": ".NET 9 + Angular · Personal project",
+          "tags": ["backend", "frontend", "openSource"],
+          "techBadges": [".NET 9", "Angular", "Tailwind v4"],
+          "tech": [".NET 9", "Angular", "Tailwind v4", "MSSQL", "MediaPipe"],
+          "summary": "Combined video calls, screen sharing, chat, and a whiteboard into one appointment system.",
+          "details": [
+            "Used MediaPipe to enrich the video call experience.",
+            "Ran the whiteboard and chat in real-time sync within the same session."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/RandevuCore" }
+        },
+        {
+          "id": "lunara",
+          "title": "Lunara",
+          "meta": "Java · Personal project",
+          "tags": ["backend", "architectureSecurity", "openSource"],
+          "techBadges": ["Java", "WebSocket", "RabbitMQ"],
+          "tech": ["Java", "WebSocket", "RabbitMQ", "SMTP", "JWT"],
+          "summary": "Built the backend for a Discord-like real-time communication system on a microservice architecture.",
+          "details": [
+            "Handled instant messaging over WebSocket and async inter-service communication via RabbitMQ.",
+            "Added JWT authentication and an SMTP notification flow."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/Lunara" }
+        },
+        {
+          "id": "wetrackx",
+          "title": "WeTrackX",
+          "meta": "TypeScript · Personal project",
+          "tags": ["frontend", "openSource"],
+          "techBadges": ["TypeScript"],
+          "tech": ["TypeScript"],
+          "summary": "Wrote a personal finance tracker with income/expense categorization and simple analytics.",
+          "details": [
+            "Categorized income and expenses and surfaced them through simple analytics."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/WeTrackX" }
+        },
+        {
+          "id": "hf-demo",
+          "title": "hf_demo",
+          "meta": "Python · Personal project",
+          "tags": ["aiml", "openSource", "academic"],
+          "techBadges": ["Python", "Hugging Face"],
+          "tech": ["Python", "Hugging Face"],
+          "summary": "Pulled Trendyol reviews and ran them through Hugging Face models for sentiment analysis.",
+          "details": [
+            "Collected review data and produced sentiment/content analysis with pretrained Hugging Face models."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/hf_demo" }
+        }
+      ]
+    },
+    "research": {
+      "heading": "Boss Level",
+      "subheading": "The one number from my thesis that matters most: how far I dropped the attack success rate.",
+      "meta": { "type": "Bachelor's Thesis", "team": "Two-person research", "dates": "January–June 2026" },
+      "tech": ["Python", "PyTorch", "BiLSTM", "Qwen2.5-7B-Instruct", "DefensiveTokens", "Hugging Face Transformers"],
+      "flow": { "steps": ["Input", "BiLSTM Pre-filter", "DefensiveToken Hardening", "Result"] },
+      "stats": {
+        "attackSuccessRate": { "label": "Attack Success Rate", "before": "95.19%", "after": "0.48%" },
+        "f1Score": { "label": "F1 Score", "value": "83.81%" }
+      },
+      "resultSummary": "With a BiLSTM pre-filter and DefensiveToken hardening, attack success rate dropped from 95.19% to 0.48%, with an F1 score of 83.81%.",
+      "methodAccordion": {
+        "label": "Method details",
+        "body": "We built a two-stage defense architecture that requires no model retraining, validated on Qwen2.5-7B-Instruct over a 15,546-sample training set and a 116-sample test set."
+      }
+    },
+    "inventory": {
+      "heading": "Inventory",
+      "subheading": "Not just a label — proof: click a skill and jump to the project that used it.",
+      "tabs": {
+        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation"] },
+        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components"] },
+        "architectureSecurity": { "label": "Architecture & Security", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log"] },
+        "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
+        "databases": { "label": "Databases", "items": ["PostgreSQL", "SQL Server", "pgvector"] },
+        "tools": { "label": "Tools", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Agile/Scrum"] }
+      }
+    },
+    "journey": {
+      "heading": "Journey Log",
+      "subheading": "The timeline lives here — in small type. Open a row for details.",
+      "expandAllLabel": "Expand All",
+      "collapseAllLabel": "Collapse All",
+      "entries": [
+        {
+          "id": "arca-fulltime",
+          "role": "Computer Engineer (Full-Time)",
+          "company": "ARCA",
+          "location": "Ankara",
+          "dates": "February 2026 – Present",
+          "bullets": [
+            "Build full-stack, end to end, across multi-tenant SaaS products, an AI agent platform, and third-party integrations.",
+            "Own production deployment, from CORS configuration to shipping releases via FileZilla.",
+            "Built the in-house chatbot widget architecture from scratch and own it end to end.",
+            "Since July 2026, lead project management for Planora with a four-person team."
+          ]
+        },
+        {
+          "id": "arca-intern",
+          "role": "Computer Engineering Intern",
+          "company": "ARCA",
+          "location": "Ankara",
+          "dates": "September 2025 – February 2026",
+          "bullets": [
+            "Served as project manager on the AYS internship project, writing the SRS and feasibility report.",
+            "Contributed to development of the Finance Module."
+          ]
+        },
+        {
+          "id": "tnc-intern",
+          "role": "Project Management Intern",
+          "company": "TNC Group & SCA Social",
+          "location": "Istanbul",
+          "dates": "June–July 2025",
+          "bullets": [
+            "Wrote PID, Gantt, and IT-law compliance documents for AI and data-science ventures.",
+            "Supported scope, risk, and delivery tracking for the team."
+          ]
+        }
+      ]
+    },
+    "characterSheet": {
+      "heading": "Character Sheet",
+      "subheading": "Education, language level, and certificates — for the curious.",
+      "closeLabel": "Close",
+      "education": { "label": "Education", "school": "Gazi University", "degree": "Computer Engineering", "graduation": "June 2026", "gpa": "3.11/4.00" },
+      "language": { "label": "Language", "name": "English", "level": "B2" },
+      "certificatesLabel": "Certificates",
+      "certificates": [
+        { "title": "Agile Project Management", "issuer": "BTK Akademi", "year": "2026" },
+        { "title": "Entrepreneurship Law and Intellectual Property Rights", "issuer": "Ankara Development Agency", "year": "2025" },
+        { "title": "Project Management Internship Certificate", "issuer": "TNC Group", "year": "2025" }
+      ]
+    },
+    "contact": {
+      "heading": "Contact",
+      "subheading": "One click away — email or LinkedIn is the fastest way to reach me.",
+      "emailButton": { "label": "Email", "value": "slhkrkyh@gmail.com" },
+      "githubButton": { "label": "GitHub", "value": "github.com/slhkrkya" },
+      "linkedinButton": { "label": "LinkedIn", "value": "linkedin.com/in/salih-karakaya-a43818299" },
+      "copiedToast": "Copied!",
+      "closingLine": "Thanks for reading this far — I'm ready to talk.",
+      "footerNote": "No phone number on purpose — email or LinkedIn gets you the fastest reply."
+    }
+  }
+};
+
+/* ---------------- helpers ---------------- */
+var i18nRefs = [];
+var currentLang = "tr";
+var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var scenePaused = false;
+
+function get(obj, path) {
+  var parts = path.split(".");
+  var cur = obj;
+  for (var i = 0; i < parts.length; i++) {
+    if (cur == null) return "";
+    cur = cur[parts[i]];
+  }
+  return cur == null ? "" : cur;
+}
+
+function bindText(node, getter) {
+  i18nRefs.push({ node: node, type: "text", getter: getter });
+  node.textContent = getter(currentLang);
+}
+function bindAttr(node, attr, getter) {
+  i18nRefs.push({ node: node, type: "attr", attr: attr, getter: getter });
+  node.setAttribute(attr, getter(currentLang));
+}
+function bindAllStaticI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(function (el) {
+    var path = el.getAttribute("data-i18n");
+    bindText(el, function (l) { return get(content[l], path); });
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
+    var path = el.getAttribute("data-i18n-aria");
+    bindAttr(el, "aria-label", function (l) { return get(content[l], path); });
+  });
+}
+function makeEl(tag, className, text) {
+  var e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function themeIsDark() {
+  var attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark") return true;
+  if (attr === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function px(ctx, x, y, color) { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1); }
+function makeCanvas(id, gridW, gridH, cell) {
+  var canvas = document.getElementById(id);
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = gridW * cell * dpr;
+  canvas.height = gridH * cell * dpr;
+  canvas.style.width = "100%";
+  canvas.style.height = "auto";
+  canvas.setAttribute("aria-hidden", "true");
+  var ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(cell * dpr, cell * dpr);
+  return { ctx: ctx, gridW: gridW, gridH: gridH };
+}
+
+/* ---------------- scene (canvas) ---------------- */
+var GRID_W = 56, GRID_H = 32;
+var sceneStars = null;
+function ensureStars() {
+  if (sceneStars) return sceneStars;
+  sceneStars = [];
+  for (var i = 0; i < 26; i++) {
+    sceneStars.push({
+      x: 30 + Math.random() * 24,
+      y: 2 + Math.random() * 12,
+      on: Math.random() > 0.4
+    });
+  }
+  return sceneStars;
+}
+
+function drawScene(scene, t) {
+  var ctx = scene.ctx, w = scene.gridW, h = scene.gridH;
+  var dark = themeIsDark();
+  var ink = "#1D2B53";
+  var roomWall = dark ? "#141A33" : "#F6E4D8";
+  var roomFloor = dark ? "#0F1428" : "#EAD6C4";
+  var deskColor = dark ? "#6B4A3A" : "#A9724F";
+  var deskDark = dark ? "#4E3527" : "#8A5B3C";
+  var monitorFrame = dark ? "#0B0F1F" : "#1D2B53";
+  var accent = cssVar("--accent") || "#FF3E7A";
+  var led = cssVar("--led") || "#14C15A";
+  var secondary = cssVar("--secondary") || "#0091D6";
+  var skyTop = dark ? "#0B1030" : "#8ED8FF";
+  var skyBottom = dark ? "#232A55" : "#CDEBFF";
+
+  ctx.fillStyle = roomWall;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = roomFloor;
+  ctx.fillRect(0, h - 8, w, 8);
+
+  var wx = 32, wy = 3, ww = 20, wh = 14;
+  ctx.fillStyle = ink;
+  ctx.fillRect(wx - 1, wy - 1, ww + 2, wh + 2);
+  var skyGrad = ctx.createLinearGradient(0, wy, 0, wy + wh);
+  skyGrad.addColorStop(0, skyTop);
+  skyGrad.addColorStop(1, skyBottom);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(wx, wy, ww, wh);
+
+  if (dark) {
+    var stars = ensureStars();
+    var blink = reduceMotion ? 1 : (Math.sin(t / 900) + 1) / 2;
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      if (s.on || blink > 0.5) px(ctx, s.x, s.y, "#FDF3E9");
+    }
+    ctx.fillStyle = "#FDF3E9";
+    ctx.fillRect(wx + ww - 8, wy + 2, 5, 5);
+  } else {
+    ctx.fillStyle = "#FFE07A";
+    ctx.fillRect(wx + ww - 8, wy + 2, 5, 5);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(wx + 3, wy + 3, 4, 2);
+    ctx.fillRect(wx + 9, wy + 6, 5, 2);
+  }
+  ctx.fillStyle = ink;
+  ctx.fillRect(wx + ww / 2 - 1, wy, 1, wh);
+  ctx.fillRect(wx, wy + wh / 2 - 1, ww, 1);
+
+  var deskX = 4, deskY = h - 13, deskW = 30, deskH = 3;
+  ctx.fillStyle = deskDark;
+  ctx.fillRect(deskX, deskY + deskH, 2, 8);
+  ctx.fillRect(deskX + deskW - 2, deskY + deskH, 2, 8);
+  ctx.fillStyle = deskColor;
+  ctx.fillRect(deskX, deskY, deskW, deskH);
+
+  var monX = deskX + 4, monY = deskY - 9, monW = 12, monH = 8;
+  ctx.fillStyle = monitorFrame;
+  ctx.fillRect(monX, monY, monW, monH);
+  ctx.fillRect(monX + monW / 2 - 1, monY + monH, 2, 2);
+  var glowPhase = reduceMotion ? 1 : (Math.sin(t / 700) + 1) / 2;
+  var screenColor = dark ? secondary : "#DDEBFF";
+  ctx.fillStyle = screenColor;
+  ctx.fillRect(monX + 1, monY + 1, monW - 2, monH - 2);
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.5 + glowPhase * 0.5;
+  ctx.fillRect(monX + 2, monY + 2, monW - 4, 1);
+  ctx.fillRect(monX + 2, monY + 4, (monW - 4) * 0.6, 1);
+  ctx.globalAlpha = 1;
+
+  var chairX = deskX + deskW + 3, chairY = deskY - 11;
+  ctx.fillStyle = ink;
+  ctx.fillRect(chairX + 1, chairY + 6, 8, 7);
+  ctx.fillRect(chairX + 2, chairY + 1, 6, 6);
+  ctx.fillStyle = "#E8B786";
+  var blinkEye = reduceMotion ? false : (Math.floor(t / 2600) % 46 === 0);
+  ctx.fillRect(chairX + 3, chairY + 2, 4, 4);
+  if (!blinkEye) {
+    ctx.fillStyle = ink;
+    ctx.fillRect(chairX + 4, chairY + 3, 1, 1);
+    ctx.fillRect(chairX + 6, chairY + 3, 1, 1);
+  }
+  ctx.fillStyle = led;
+  ctx.fillRect(chairX - 2, chairY + 8, 3, 5);
+  ctx.fillRect(chairX + 8, chairY + 8, 3, 5);
+
+  ctx.fillStyle = ink;
+  for (var lx = 0; lx < w; lx += 4) {
+    ctx.fillRect(lx, h - 1, 2, 1);
+  }
+}
+
+function initScene() {
+  var scene = makeCanvas("scene-canvas", GRID_W, GRID_H, 6);
+  var lastActiveTs = 0;
+  function frame(ts) {
+    if (!scenePaused) lastActiveTs = ts;
+    drawScene(scene, lastActiveTs);
+    if (!reduceMotion) requestAnimationFrame(frame);
+  }
+  if (reduceMotion) {
+    drawScene(scene, 0);
+  } else {
+    requestAnimationFrame(frame);
+  }
+  var mo = new MutationObserver(function () { if (reduceMotion) drawScene(scene, 0); });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+    if (reduceMotion) drawScene(scene, 0);
+  });
+}
+
+/* ---------------- theme toggle ---------------- */
+function refreshThemeButton() {
+  var btn = document.getElementById("theme-toggle-btn");
+  if (!btn) return;
+  var dark = themeIsDark();
+  btn.textContent = dark ? "☾" : "☀";
+  btn.setAttribute("aria-label", dark ? get(content[currentLang], "hero.themeToggleToLight") : get(content[currentLang], "hero.themeToggleToDark"));
+}
+function initTheme() {
+  var stored = null;
+  try { stored = localStorage.getItem("theme"); } catch (e) {}
+  if (stored === "dark" || stored === "light") {
+    document.documentElement.setAttribute("data-theme", stored);
+  }
+  refreshThemeButton();
+  document.getElementById("theme-toggle-btn").addEventListener("click", function () {
+    var next = themeIsDark() ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("theme", next); } catch (e) {}
+    refreshThemeButton();
+  });
+}
+
+/* ---------------- language ---------------- */
+function setLanguage(lang, opts) {
+  currentLang = lang;
+  for (var i = 0; i < i18nRefs.length; i++) {
+    var r = i18nRefs[i];
+    if (r.type === "text") r.node.textContent = r.getter(lang);
+    else r.node.setAttribute(r.attr, r.getter(lang));
+  }
+  document.documentElement.lang = content[lang].meta.htmlLang;
+  document.title = content[lang].meta.title;
+  var metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute("content", content[lang].meta.description);
+  document.getElementById("lang-btn-tr").setAttribute("aria-pressed", lang === "tr" ? "true" : "false");
+  document.getElementById("lang-btn-en").setAttribute("aria-pressed", lang === "en" ? "true" : "false");
+  try { localStorage.setItem("lang", lang); } catch (e) {}
+  if (!opts || !opts.silent) {
+    var announcer = document.getElementById("a11y-announcer");
+    announcer.textContent = content[lang].nav.langToggle.announce;
+  }
+  refreshResearchStatValues();
+  refreshThemeButton();
+}
+
+function initLangToggle() {
+  var stored = null;
+  try { stored = localStorage.getItem("lang"); } catch (e) {}
+  if (stored === "tr" || stored === "en") currentLang = stored;
+  document.getElementById("lang-btn-tr").addEventListener("click", function () { setLanguage("tr"); });
+  document.getElementById("lang-btn-en").addEventListener("click", function () { setLanguage("en"); });
+}
+
+/* ---------------- hero links ---------------- */
+function buildHeroLinks() {
+  var wrap = document.getElementById("hero-links");
+  var defs = [
+    { key: "email", href: function (l) { return "mailto:" + content[l].hero.links.email; }, glyph: "@" },
+    { key: "github", href: function (l) { return "https://" + content[l].hero.links.github; }, glyph: "▣" },
+    { key: "linkedin", href: function (l) { return "https://" + content[l].hero.links.linkedin; }, glyph: "in" }
+  ];
+  defs.forEach(function (d) {
+    var a = document.createElement("a");
+    a.className = "icon-link";
+    a.href = d.href(currentLang);
+    var glyph = makeEl("span", "icon-glyph", d.glyph);
+    glyph.setAttribute("aria-hidden", "true");
+    var label = document.createElement("span");
+    a.appendChild(glyph);
+    a.appendChild(label);
+    bindText(label, function (l) { return get(content[l], "hero.links." + d.key + "Label") + ": " + get(content[l], "hero.links." + d.key); });
+    i18nRefs.push({ node: a, type: "attr", attr: "href", getter: d.href });
+    if (d.key !== "email") {
+      a.target = "_blank"; a.rel = "noopener noreferrer";
+      var hint = makeEl("span", "visually-hidden");
+      bindText(hint, function (l) { return " " + get(content[l], "common.newTabHint"); });
+      a.appendChild(hint);
+    }
+    wrap.appendChild(a);
+  });
+}
+
+/* ---------------- route compass / nav ---------------- */
+var SECTION_IDS = ["projects", "research", "inventory", "journey", "contact"];
+function buildNav() {
+  var pillMenu = document.getElementById("pill-menu");
+  var dots = document.getElementById("compass-dots");
+  SECTION_IDS.forEach(function (id) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pill-btn";
+    btn.dataset.target = id;
+    btn.setAttribute("aria-current", "false");
+    bindText(btn, function (l) { return get(content[l], "nav.items." + id); });
+    btn.addEventListener("click", function () { jumpTo(id); });
+    pillMenu.appendChild(btn);
+
+    var dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "compass-dot";
+    dot.dataset.target = id;
+    dot.tabIndex = -1;
+    dot.addEventListener("click", function () { jumpTo(id); });
+    dots.appendChild(dot);
+  });
+}
+function jumpTo(id) {
+  var target = document.getElementById(id);
+  if (!target) return;
+  target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+}
+function setActiveSection(id) {
+  document.querySelectorAll(".pill-btn").forEach(function (b) {
+    b.setAttribute("aria-current", b.dataset.target === id ? "true" : "false");
+  });
+  document.querySelectorAll(".compass-dot").forEach(function (d) {
+    d.setAttribute("aria-current", d.dataset.target === id ? "true" : "false");
+  });
+}
+function initSectionObserver() {
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) setActiveSection(entry.target.id);
+    });
+  }, { rootMargin: "-40% 0px -50% 0px", threshold: 0 });
+  SECTION_IDS.forEach(function (id) {
+    var s = document.getElementById(id);
+    if (s) io.observe(s);
+  });
+}
+
+/* ---------------- reveal on scroll ---------------- */
+function initReveal() {
+  var items = document.querySelectorAll(".reveal");
+  if (reduceMotion) {
+    items.forEach(function (el) { el.classList.add("is-visible"); });
+    return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry, idx) {
+      if (entry.isIntersecting) {
+        var delay = Math.min(idx, 6) * 50;
+        entry.target.style.transitionDelay = delay + "ms";
+        entry.target.classList.add("is-visible");
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  items.forEach(function (el) { io.observe(el); });
+}
+
+/* ---------------- project shelf ---------------- */
+var FILTER_KEYS = ["all", "backend", "frontend", "architectureSecurity", "aiml", "workProjects", "openSource", "academic"];
+var selectedFilters = new Set();
+var techFilter = null;
+
+function buildFilterChips() {
+  var row = document.getElementById("filter-chip-row");
+  row.setAttribute("role", "toolbar");
+  row.setAttribute("aria-orientation", "horizontal");
+  FILTER_KEYS.forEach(function (key, idx) {
+    var chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.dataset.key = key;
+    chip.tabIndex = idx === 0 ? 0 : -1;
+    chip.setAttribute("aria-pressed", key === "all" ? "true" : "false");
+    bindText(chip, function (l) { return get(content[l], "projectShelf.filters." + key); });
+    chip.addEventListener("click", function () { toggleFilter(key); });
+    row.appendChild(chip);
+  });
+  row.addEventListener("keydown", function (e) {
+    var chips = Array.prototype.slice.call(row.querySelectorAll(".chip"));
+    var idx = chips.indexOf(document.activeElement);
+    if (idx === -1) return;
+    var newIdx = idx;
+    if (e.key === "ArrowRight") newIdx = (idx + 1) % chips.length;
+    else if (e.key === "ArrowLeft") newIdx = (idx - 1 + chips.length) % chips.length;
+    else if (e.key === "Home") newIdx = 0;
+    else if (e.key === "End") newIdx = chips.length - 1;
+    else return;
+    e.preventDefault();
+    chips[idx].tabIndex = -1;
+    chips[newIdx].tabIndex = 0;
+    chips[newIdx].focus();
+  });
+  row.addEventListener("focusin", function (e) {
+    var chips = Array.prototype.slice.call(row.querySelectorAll(".chip"));
+    chips.forEach(function (c) { c.tabIndex = c === e.target ? 0 : -1; });
+  });
+}
+function toggleFilter(key) {
+  if (key === "all") {
+    selectedFilters.clear();
+  } else {
+    if (selectedFilters.has(key)) selectedFilters.delete(key);
+    else selectedFilters.add(key);
+  }
+  refreshFilterChipStates();
+  applyProjectFilters();
+}
+function refreshFilterChipStates() {
+  document.querySelectorAll(".chip").forEach(function (chip) {
+    var key = chip.dataset.key;
+    var pressed = key === "all" ? selectedFilters.size === 0 : selectedFilters.has(key);
+    chip.setAttribute("aria-pressed", pressed ? "true" : "false");
+  });
+}
+function clearTechFilter() {
+  techFilter = null;
+  document.getElementById("tech-filter-pill").classList.remove("active");
+  applyProjectFilters();
+}
+function setTechFilter(name) {
+  techFilter = name;
+  var pill = document.getElementById("tech-filter-pill");
+  pill.classList.add("active");
+  document.getElementById("tech-filter-label").textContent = name;
+  applyProjectFilters();
+  jumpTo("projects");
+}
+function applyProjectFilters() {
+  var cards = document.querySelectorAll(".project-card");
+  var visibleCount = 0;
+  cards.forEach(function (card) {
+    var tags = JSON.parse(card.dataset.tags || "[]");
+    var tech = JSON.parse(card.dataset.tech || "[]");
+    var categoryPass = selectedFilters.size === 0 || tags.some(function (t) { return selectedFilters.has(t); });
+    var techPass = !techFilter || tech.indexOf(techFilter) !== -1;
+    var show = categoryPass && techPass;
+    card.hidden = !show;
+    if (show) visibleCount++;
+  });
+  document.getElementById("no-matches").classList.toggle("show", visibleCount === 0);
+  var announcer = document.getElementById("a11y-announcer");
+  if (announcer) {
+    if (visibleCount === 0) {
+      announcer.textContent = get(content[currentLang], "projectShelf.noMatches.title");
+    } else {
+      announcer.textContent = currentLang === "tr" ? (visibleCount + " proje bulundu") : (visibleCount + " projects found");
+    }
+  }
+}
+
+function buildProjectCards() {
+  var grid = document.getElementById("project-grid");
+  var projectsTr = content.tr.projectShelf.projects;
+  projectsTr.forEach(function (p) {
+    var card = document.createElement("details");
+    card.className = "project-card reveal";
+    card.dataset.tags = JSON.stringify(p.tags);
+    card.dataset.tech = JSON.stringify(p.tech);
+    card.dataset.id = p.id;
+
+    var summary = document.createElement("summary");
+    var top = makeEl("div", "card-summary-top");
+    var titleWrap = document.createElement("div");
+    var title = makeEl("h3", "card-title");
+    bindText(title, makeProjectGetter(p.id, "title"));
+    var meta = makeEl("p", "card-meta tabular");
+    bindText(meta, makeProjectGetter(p.id, "meta"));
+    titleWrap.appendChild(title);
+    titleWrap.appendChild(meta);
+    top.appendChild(titleWrap);
+    if (p.badge) {
+      var badge = makeEl("span", "status-badge new");
+      bindText(badge, function (l) { return get(content[l], "projectShelf.badges." + p.badge); });
+      top.appendChild(badge);
+    }
+    summary.appendChild(top);
+
+    var badgesRow = makeEl("div", "card-badges");
+    p.techBadges.forEach(function (tb) { badgesRow.appendChild(makeEl("span", "tech-badge", tb)); });
+    summary.appendChild(badgesRow);
+
+    var summaryText = makeEl("p", "card-summary-text");
+    bindText(summaryText, makeProjectGetter(p.id, "summary"));
+    summary.appendChild(summaryText);
+
+    var hint = makeEl("span", "details-toggle-hint");
+    bindText(hint, function (l) { return get(content[l], "projectShelf.detailsToggleLabel"); });
+    summary.appendChild(hint);
+
+    card.appendChild(summary);
+
+    var detailList = makeEl("ul", "card-detail-list");
+    p.details.forEach(function (d, idx) {
+      var li = document.createElement("li");
+      bindText(li, function (l) {
+        var proj = content[l].projectShelf.projects.find(function (x) { return x.id === p.id; });
+        return proj.details[idx];
+      });
+      detailList.appendChild(li);
+    });
+    card.appendChild(detailList);
+
+    var linkRow = makeEl("div", "card-link-row");
+    if (p.link.type === "github") {
+      var a = document.createElement("a");
+      a.className = "card-link";
+      a.href = p.link.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      bindText(a, function (l) { return "↗ " + get(content[l], "projectShelf.openSourceLinkLabel"); });
+      linkRow.appendChild(a);
+    } else {
+      var lockBadge = makeEl("span", "status-badge locked");
+      bindText(lockBadge, function (l) { return get(content[l], "projectShelf.badges.workBadge"); });
+      linkRow.appendChild(lockBadge);
+    }
+    card.appendChild(linkRow);
+
+    card.addEventListener("toggle", updateScenePauseState);
+
+    grid.appendChild(card);
+  });
+}
+function makeProjectGetter(id, field) {
+  return function (l) {
+    var proj = content[l].projectShelf.projects.find(function (x) { return x.id === id; });
+    return proj ? proj[field] : "";
+  };
+}
+
+/* ---------------- research / boss level ---------------- */
+function buildResearch() {
+  var techRow = document.getElementById("research-tech-row");
+  content.tr.research.tech.forEach(function (t) { techRow.appendChild(makeEl("span", "tech-badge", t)); });
+
+  var flowRow = document.getElementById("research-flow-row");
+  content.tr.research.flow.steps.forEach(function (step, idx) {
+    var box = makeEl("span", "flow-box");
+    bindText(box, function (l) { return content[l].research.flow.steps[idx]; });
+    flowRow.appendChild(box);
+    if (idx < content.tr.research.flow.steps.length - 1) {
+      var arrow = makeEl("span", "flow-arrow", "→");
+      arrow.setAttribute("aria-hidden", "true");
+      flowRow.appendChild(arrow);
+    }
+  });
+
+}
+var statCurrent = { before: 0, after: 0, f1: 0 };
+function formatPercent(lang, value) {
+  var fixed = value.toFixed(2).replace(".", lang === "tr" ? "," : ".");
+  return lang === "tr" ? "%" + fixed : fixed + "%";
+}
+function refreshResearchStatValues() {
+  var valBefore = document.getElementById("val-before");
+  var valAfter = document.getElementById("val-after");
+  var valF1 = document.getElementById("val-f1");
+  if (!valBefore) return;
+  valBefore.textContent = formatPercent(currentLang, statCurrent.before);
+  valAfter.textContent = formatPercent(currentLang, statCurrent.after);
+  valF1.textContent = formatPercent(currentLang, statCurrent.f1);
+}
+function animateResearchStats() {
+  var attackBefore = 95.19, attackAfter = 0.48, f1 = 83.81;
+  var barBefore = document.getElementById("bar-before");
+  var barAfter = document.getElementById("bar-after");
+
+  function render(vb, va, vf) {
+    statCurrent.before = vb;
+    statCurrent.after = va;
+    statCurrent.f1 = vf;
+    barBefore.style.width = vb + "%";
+    barAfter.style.width = va + "%";
+    refreshResearchStatValues();
+  }
+
+  if (reduceMotion) {
+    render(attackBefore, attackAfter, f1);
+    return;
+  }
+  var duration = 750;
+  var start = null;
+  function step(ts) {
+    if (start === null) start = ts;
+    var progress = Math.min(1, (ts - start) / duration);
+    render(attackBefore * progress, attackAfter * progress, f1 * progress);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function initResearchObserver() {
+  var section = document.getElementById("research");
+  var done = false;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting && !done) {
+        done = true;
+        animateResearchStats();
+        io.disconnect();
+      }
+    });
+  }, { threshold: 0.3 });
+  io.observe(section);
+}
+
+/* ---------------- inventory ---------------- */
+var TAB_KEYS = ["backend", "frontend", "architectureSecurity", "aiml", "databases", "tools"];
+function buildInventory() {
+  var tablist = document.getElementById("skill-tablist");
+  var panelsWrap = document.getElementById("skill-panels");
+  TAB_KEYS.forEach(function (key, idx) {
+    var tabBtn = document.createElement("button");
+    tabBtn.type = "button";
+    tabBtn.className = "tab-btn";
+    tabBtn.id = "tab-" + key;
+    tabBtn.setAttribute("role", "tab");
+    tabBtn.setAttribute("aria-selected", idx === 0 ? "true" : "false");
+    tabBtn.setAttribute("aria-controls", "panel-" + key);
+    tabBtn.tabIndex = idx === 0 ? 0 : -1;
+    bindText(tabBtn, function (l) { return get(content[l], "inventory.tabs." + key + ".label"); });
+    tabBtn.addEventListener("click", function () { activateTab(key); });
+    tablist.appendChild(tabBtn);
+
+    var panel = document.createElement("div");
+    panel.className = "tabpanel reveal";
+    panel.id = "panel-" + key;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", "tab-" + key);
+    panel.tabIndex = 0;
+    if (idx !== 0) panel.hidden = true;
+    var grid = makeEl("div", "skill-grid");
+    var items = content.tr.inventory.tabs[key].items;
+    var visibleCap = 6;
+    var extraChips = [];
+    items.forEach(function (item, itemIdx) {
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "skill-chip";
+      chip.textContent = item;
+      chip.addEventListener("click", function () { setTechFilter(item); });
+      if (itemIdx >= visibleCap) {
+        chip.hidden = true;
+        extraChips.push(chip);
+      }
+      grid.appendChild(chip);
+    });
+    if (items.length > visibleCap) {
+      var extraCount = items.length - visibleCap;
+      var moreExpanded = false;
+      var moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "skill-chip skill-chip-more";
+      moreBtn.setAttribute("aria-expanded", "false");
+      function refreshMoreLabel(l) {
+        return moreExpanded ? (l === "tr" ? "Daha az göster" : "Show fewer") : (l === "tr" ? ("+" + extraCount + " daha") : ("+" + extraCount + " more"));
+      }
+      bindText(moreBtn, refreshMoreLabel);
+      moreBtn.addEventListener("click", function () {
+        moreExpanded = !moreExpanded;
+        moreBtn.setAttribute("aria-expanded", String(moreExpanded));
+        extraChips.forEach(function (c) { c.hidden = !moreExpanded; });
+        moreBtn.textContent = refreshMoreLabel(currentLang);
+      });
+      grid.appendChild(moreBtn);
+    }
+    panel.appendChild(grid);
+    panelsWrap.appendChild(panel);
+  });
+
+  tablist.addEventListener("keydown", function (e) {
+    var idx = TAB_KEYS.indexOf(document.activeElement.id.replace("tab-", ""));
+    if (idx === -1) return;
+    var newIdx = idx;
+    if (e.key === "ArrowRight") newIdx = (idx + 1) % TAB_KEYS.length;
+    else if (e.key === "ArrowLeft") newIdx = (idx - 1 + TAB_KEYS.length) % TAB_KEYS.length;
+    else if (e.key === "Home") newIdx = 0;
+    else if (e.key === "End") newIdx = TAB_KEYS.length - 1;
+    else return;
+    e.preventDefault();
+    activateTab(TAB_KEYS[newIdx]);
+    document.getElementById("tab-" + TAB_KEYS[newIdx]).focus();
+  });
+}
+function activateTab(key) {
+  TAB_KEYS.forEach(function (k) {
+    var isActive = k === key;
+    var tabBtn = document.getElementById("tab-" + k);
+    var panel = document.getElementById("panel-" + k);
+    tabBtn.setAttribute("aria-selected", isActive ? "true" : "false");
+    tabBtn.tabIndex = isActive ? 0 : -1;
+    panel.hidden = !isActive;
+  });
+}
+
+/* ---------------- journey ---------------- */
+function buildJourney() {
+  var list = document.getElementById("journey-list");
+  content.tr.journey.entries.forEach(function (entry) {
+    var row = document.createElement("details");
+    row.className = "journey-row reveal";
+    row.dataset.id = entry.id;
+
+    var summary = document.createElement("summary");
+    var role = makeEl("h3", "j-role");
+    bindText(role, function (l) {
+      var e2 = content[l].journey.entries.find(function (x) { return x.id === entry.id; });
+      return e2.role;
+    });
+    var dot1 = document.createTextNode(" · ");
+    var company = makeEl("span", "j-company", entry.company);
+    var dot2 = document.createTextNode(" · ");
+    var dates = makeEl("span", "j-dates tabular");
+    bindText(dates, function (l) {
+      var e2 = content[l].journey.entries.find(function (x) { return x.id === entry.id; });
+      return e2.dates;
+    });
+    summary.appendChild(role);
+    summary.appendChild(dot1);
+    summary.appendChild(company);
+    summary.appendChild(dot2);
+    summary.appendChild(dates);
+    row.appendChild(summary);
+
+    var bullets = makeEl("ul", "journey-bullets");
+    entry.bullets.forEach(function (b, idx) {
+      var li = document.createElement("li");
+      bindText(li, function (l) {
+        var e2 = content[l].journey.entries.find(function (x) { return x.id === entry.id; });
+        return e2.bullets[idx];
+      });
+      bullets.appendChild(li);
+    });
+    row.appendChild(bullets);
+    list.appendChild(row);
+  });
+
+  var toggleBtn = document.getElementById("journey-expand-toggle");
+  var expanded = false;
+  toggleBtn.addEventListener("click", function () {
+    expanded = !expanded;
+    var rows = document.querySelectorAll(".journey-row");
+    if (reduceMotion) {
+      rows.forEach(function (row) { row.open = expanded; });
+    } else {
+      rows.forEach(function (row, idx) {
+        setTimeout(function () { row.open = expanded; }, idx * 90);
+      });
+    }
+    toggleBtn.textContent = expanded ? content[currentLang].journey.collapseAllLabel : content[currentLang].journey.expandAllLabel;
+  });
+  i18nRefs.push({
+    node: toggleBtn, type: "text",
+    getter: function (l) { return expanded ? content[l].journey.collapseAllLabel : content[l].journey.expandAllLabel; }
+  });
+}
+
+/* ---------------- character dialog ---------------- */
+function buildCharacterDialog() {
+  bindText(document.getElementById("edu-school-label"), function (l) { return content[l].characterSheet.education.school; });
+  bindText(document.getElementById("edu-degree"), function (l) { return content[l].characterSheet.education.degree; });
+  bindText(document.getElementById("edu-gpa"), function (l) { return content[l].characterSheet.education.gpa; });
+  bindText(document.getElementById("edu-grad-label"), function (l) { return l === "tr" ? "Mezuniyet" : "Graduation"; });
+  bindText(document.getElementById("edu-grad"), function (l) { return content[l].characterSheet.education.graduation; });
+  bindText(document.getElementById("lang-name"), function (l) { return content[l].characterSheet.language.name; });
+  bindText(document.getElementById("lang-level"), function (l) { return content[l].characterSheet.language.level; });
+
+  var certList = document.getElementById("cert-list");
+  content.tr.characterSheet.certificates.forEach(function (cert, idx) {
+    var li = makeEl("li", "cert-item");
+    var medal = makeEl("span", "cert-medal");
+    medal.setAttribute("aria-hidden", "true");
+    var textWrap = document.createElement("div");
+    var titleEl = makeEl("p", "cert-text");
+    bindText(titleEl, function (l) { return content[l].characterSheet.certificates[idx].title; });
+    var issuerEl = makeEl("p", "cert-issuer");
+    bindText(issuerEl, function (l) {
+      var c = content[l].characterSheet.certificates[idx];
+      return c.issuer + " · " + c.year;
+    });
+    i18nRefs.push({ node: li, type: "attr", attr: "title", getter: function (l) {
+      var c = content[l].characterSheet.certificates[idx];
+      return c.issuer + " (" + c.year + ")";
+    }});
+    textWrap.appendChild(titleEl);
+    textWrap.appendChild(issuerEl);
+    li.appendChild(medal);
+    li.appendChild(textWrap);
+    certList.appendChild(li);
+  });
+
+  var dialog = document.getElementById("character-dialog");
+  var lastTrigger = null;
+  function openDialog(trigger) {
+    lastTrigger = trigger;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    updateScenePauseState();
+  }
+  function closeDialog() {
+    if (typeof dialog.close === "function") dialog.close();
+    else dialog.removeAttribute("open");
+  }
+  document.getElementById("hero-avatar-btn").addEventListener("click", function (e) { openDialog(e.currentTarget); });
+  document.getElementById("nav-character-btn").addEventListener("click", function (e) { openDialog(e.currentTarget); });
+  document.getElementById("dialog-close-btn").addEventListener("click", closeDialog);
+  dialog.addEventListener("click", function (e) { if (e.target === dialog) closeDialog(); });
+  dialog.addEventListener("close", function () {
+    updateScenePauseState();
+    if (lastTrigger) lastTrigger.focus();
+  });
+}
+
+function updateScenePauseState() {
+  var dialog = document.getElementById("character-dialog");
+  var anyCardOpen = Array.prototype.some.call(document.querySelectorAll(".project-card"), function (c) { return c.open; });
+  scenePaused = dialog.open || anyCardOpen;
+}
+
+/* ---------------- contact ---------------- */
+function buildContact() {
+  var actions = document.getElementById("contact-actions");
+
+  var emailBtn = document.createElement("button");
+  emailBtn.type = "button";
+  emailBtn.className = "contact-btn";
+  var emailLabel = makeEl("span", "contact-btn-label");
+  bindText(emailLabel, function (l) { return content[l].contact.emailButton.label; });
+  var emailValue = makeEl("span", "contact-btn-value tabular");
+  bindText(emailValue, function (l) { return content[l].contact.emailButton.value; });
+  emailBtn.appendChild(emailLabel);
+  emailBtn.appendChild(emailValue);
+  emailBtn.addEventListener("click", function () {
+    var value = content[currentLang].contact.emailButton.value;
+    copyToClipboard(value);
+    showToast(content[currentLang].contact.copiedToast);
+  });
+  actions.appendChild(emailBtn);
+
+  var ghA = document.createElement("a");
+  ghA.className = "contact-btn";
+  ghA.href = "https://" + content.tr.contact.githubButton.value;
+  ghA.target = "_blank";
+  ghA.rel = "noopener noreferrer";
+  var ghLabel = makeEl("span", "contact-btn-label");
+  bindText(ghLabel, function (l) { return content[l].contact.githubButton.label; });
+  var ghValue = makeEl("span", "contact-btn-value", content.tr.contact.githubButton.value);
+  var ghHint = makeEl("span", "visually-hidden");
+  bindText(ghHint, function (l) { return " " + get(content[l], "common.newTabHint"); });
+  ghA.appendChild(ghLabel);
+  ghA.appendChild(ghValue);
+  ghA.appendChild(ghHint);
+  actions.appendChild(ghA);
+
+  var liA = document.createElement("a");
+  liA.className = "contact-btn";
+  liA.href = "https://" + content.tr.contact.linkedinButton.value;
+  liA.target = "_blank";
+  liA.rel = "noopener noreferrer";
+  var liLabel = makeEl("span", "contact-btn-label");
+  bindText(liLabel, function (l) { return content[l].contact.linkedinButton.label; });
+  var liValue = makeEl("span", "contact-btn-value", content.tr.contact.linkedinButton.value);
+  var liHint = makeEl("span", "visually-hidden");
+  bindText(liHint, function (l) { return " " + get(content[l], "common.newTabHint"); });
+  liA.appendChild(liLabel);
+  liA.appendChild(liValue);
+  liA.appendChild(liHint);
+  actions.appendChild(liA);
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+}
+var toastTimer = null;
+function showToast(message) {
+  var toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { toast.classList.remove("show"); }, reduceMotion ? 1500 : 1800);
+}
+
+/* ---------------- speech bubble ---------------- */
+function initSpeechBubble() {
+  var bubble = document.getElementById("speech-bubble");
+  var hidden = false;
+  function hide() {
+    if (hidden) return;
+    hidden = true;
+    bubble.classList.add("hidden-bubble");
+  }
+  if (reduceMotion) {
+    setTimeout(hide, 50);
+  } else {
+    setTimeout(hide, 4500);
+    window.addEventListener("scroll", hide, { once: true, passive: true });
+  }
+}
+
+/* ---------------- init ---------------- */
+function init() {
+  initLangToggle();
+  bindAllStaticI18n();
+  buildHeroLinks();
+  buildNav();
+  buildFilterChips();
+  buildProjectCards();
+  buildResearch();
+  buildInventory();
+  buildJourney();
+  buildCharacterDialog();
+  buildContact();
+  document.getElementById("tech-filter-clear").addEventListener("click", clearTechFilter);
+
+  setLanguage(currentLang, { silent: true });
+  applyProjectFilters();
+  initScene();
+  initTheme();
+  initSpeechBubble();
+  initSectionObserver();
+  initReveal();
+  initResearchObserver();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+
+})();
+</script>
+</body>
+</html>
