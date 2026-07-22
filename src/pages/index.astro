@@ -703,7 +703,16 @@ dialog.character-dialog::backdrop {
 }
 .stat-line-label { color: var(--ink-soft); }
 .cert-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.cert-item { display: flex; align-items: center; gap: 10px; }
+.cert-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  padding: 4px;
+  margin: -4px;
+}
+.cert-link:hover .cert-text { color: var(--link-text); text-decoration: underline; }
 .cert-medal {
   width: 22px; height: 22px;
   background: var(--accent);
@@ -712,6 +721,7 @@ dialog.character-dialog::backdrop {
 }
 .cert-text { font-size: 0.86rem; }
 .cert-issuer { color: var(--ink-soft); font-size: 0.78rem; }
+.cert-preview-hint { color: var(--link-text); font-size: 0.72rem; }
 .dialog-section-label {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -969,7 +979,7 @@ footer.site-footer {
     <div class="dialog-head">
       <div>
         <h2 class="dialog-title" id="character-dialog-title" data-i18n="characterSheet.heading">Karakter Sayfası</h2>
-        <p class="dialog-sub" data-i18n="characterSheet.subheading">Eğitim, dil seviyesi ve sertifikalar — meraklısına.</p>
+        <p class="dialog-sub" data-i18n="characterSheet.subheading">Eğitim, dil seviyesi, sertifikalar ve referanslar — meraklısına.</p>
       </div>
       <button type="button" class="dialog-close-btn" id="dialog-close-btn" data-i18n-aria="characterSheet.closeLabel" aria-label="Kapat">×</button>
     </div>
@@ -981,6 +991,8 @@ footer.site-footer {
     <div class="stat-line"><span class="stat-line-label" id="lang-name">İngilizce</span><span id="lang-level">B2</span></div>
     <p class="dialog-section-label" data-i18n="characterSheet.certificatesLabel">Sertifikalar</p>
     <ul class="cert-list" id="cert-list"></ul>
+    <p class="dialog-section-label" data-i18n="characterSheet.referencesLabel">Referanslar</p>
+    <ul class="cert-list" id="reference-list"></ul>
   </div>
 </dialog>
 
@@ -1263,15 +1275,20 @@ var content = {
     },
     "characterSheet": {
       "heading": "Karakter Sayfası",
-      "subheading": "Eğitim, dil seviyesi ve sertifikalar — meraklısına.",
+      "subheading": "Eğitim, dil seviyesi, sertifikalar ve referanslar — meraklısına.",
       "closeLabel": "Kapat",
       "education": { "label": "Eğitim", "school": "Gazi Üniversitesi", "degree": "Bilgisayar Mühendisliği", "graduation": "Haziran 2026", "gpa": "3.11/4.00" },
       "language": { "label": "Dil", "name": "İngilizce", "level": "B2" },
       "certificatesLabel": "Sertifikalar",
       "certificates": [
-        { "title": "Çevik Proje Yönetimi", "issuer": "BTK Akademi", "year": "2026" },
-        { "title": "Girişimcilik Hukuku ve Fikri Mülkiyet Hakları", "issuer": "Ankara Kalkınma Ajansı", "year": "2025" },
-        { "title": "Proje Yönetimi Staj Sertifikası", "issuer": "TNC Group", "year": "2025" }
+        { "title": "Çevik Proje Yönetimi", "issuer": "BTK Akademi", "year": "2026", "href": "/docs/cevik-proje-yonetimi-sertifika.pdf" },
+        { "title": "Platformlarla Yapay Zeka Ajanı Geliştirme", "issuer": "BTK Akademi", "year": "2026", "href": "/docs/platformlarla-yapay-zeka-ajani-gelistirme.pdf" },
+        { "title": "Girişimcilik Hukuku ve Fikri Mülkiyet Hakları", "issuer": "Ankara Kalkınma Ajansı", "year": "2025", "href": "/docs/girisimcilik-hukuku-fikri-mulkiyet.pdf" },
+        { "title": "Proje Yönetimi Staj Sertifikası", "issuer": "TNC Group", "year": "2025", "href": "/docs/proje-yonetimi-staj-sertifikasi.pdf" }
+      ],
+      "referencesLabel": "Referanslar",
+      "references": [
+        { "title": "Referans Mektubu", "issuer": "TNC Group & SCA Social", "year": "2025", "href": "/docs/tncgroup-referans-mektubu.pdf" }
       ]
     },
     "contact": {
@@ -1548,15 +1565,20 @@ var content = {
     },
     "characterSheet": {
       "heading": "Character Sheet",
-      "subheading": "Education, language level, and certificates — for the curious.",
+      "subheading": "Education, language level, certificates, and references — for the curious.",
       "closeLabel": "Close",
       "education": { "label": "Education", "school": "Gazi University", "degree": "Computer Engineering", "graduation": "June 2026", "gpa": "3.11/4.00" },
       "language": { "label": "Language", "name": "English", "level": "B2" },
       "certificatesLabel": "Certificates",
       "certificates": [
-        { "title": "Agile Project Management", "issuer": "BTK Akademi", "year": "2026" },
-        { "title": "Entrepreneurship Law and Intellectual Property Rights", "issuer": "Ankara Development Agency", "year": "2025" },
-        { "title": "Project Management Internship Certificate", "issuer": "TNC Group", "year": "2025" }
+        { "title": "Agile Project Management", "issuer": "BTK Akademi", "year": "2026", "href": "/docs/cevik-proje-yonetimi-sertifika.pdf" },
+        { "title": "AI Agent Development with Platforms", "issuer": "BTK Akademi", "year": "2026", "href": "/docs/platformlarla-yapay-zeka-ajani-gelistirme.pdf" },
+        { "title": "Entrepreneurship Law and Intellectual Property Rights", "issuer": "Ankara Development Agency", "year": "2025", "href": "/docs/girisimcilik-hukuku-fikri-mulkiyet.pdf" },
+        { "title": "Project Management Internship Certificate", "issuer": "TNC Group", "year": "2025", "href": "/docs/proje-yonetimi-staj-sertifikasi.pdf" }
+      ],
+      "referencesLabel": "References",
+      "references": [
+        { "title": "Reference Letter", "issuer": "TNC Group & SCA Social", "year": "2025", "href": "/docs/tncgroup-referans-mektubu.pdf" }
       ]
     },
     "contact": {
@@ -2347,29 +2369,42 @@ function buildCharacterDialog() {
   bindText(document.getElementById("lang-name"), function (l) { return content[l].characterSheet.language.name; });
   bindText(document.getElementById("lang-level"), function (l) { return content[l].characterSheet.language.level; });
 
-  var certList = document.getElementById("cert-list");
-  content.tr.characterSheet.certificates.forEach(function (cert, idx) {
-    var li = makeEl("li", "cert-item");
-    var medal = makeEl("span", "cert-medal");
-    medal.setAttribute("aria-hidden", "true");
-    var textWrap = document.createElement("div");
-    var titleEl = makeEl("p", "cert-text");
-    bindText(titleEl, function (l) { return content[l].characterSheet.certificates[idx].title; });
-    var issuerEl = makeEl("p", "cert-issuer");
-    bindText(issuerEl, function (l) {
-      var c = content[l].characterSheet.certificates[idx];
-      return c.issuer + " · " + c.year;
+  function renderDocList(containerId, sectionKey) {
+    var listEl = document.getElementById(containerId);
+    content.tr.characterSheet[sectionKey].forEach(function (item, idx) {
+      var li = makeEl("li", "cert-item");
+      var link = document.createElement("a");
+      link.className = "cert-link";
+      link.href = item.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      var medal = makeEl("span", "cert-medal");
+      medal.setAttribute("aria-hidden", "true");
+      var textWrap = document.createElement("div");
+      var titleEl = makeEl("p", "cert-text");
+      bindText(titleEl, function (l) { return content[l].characterSheet[sectionKey][idx].title; });
+      var issuerEl = makeEl("p", "cert-issuer");
+      bindText(issuerEl, function (l) {
+        var c = content[l].characterSheet[sectionKey][idx];
+        return c.issuer + " · " + c.year;
+      });
+      var hintEl = makeEl("p", "cert-preview-hint");
+      bindText(hintEl, function (l) { return (l === "tr" ? "PDF olarak önizle" : "Preview as PDF") + " " + get(content[l], "common.newTabHint"); });
+      i18nRefs.push({ node: link, type: "attr", attr: "title", getter: function (l) {
+        var c = content[l].characterSheet[sectionKey][idx];
+        return c.issuer + " (" + c.year + ")";
+      }});
+      textWrap.appendChild(titleEl);
+      textWrap.appendChild(issuerEl);
+      textWrap.appendChild(hintEl);
+      link.appendChild(medal);
+      link.appendChild(textWrap);
+      li.appendChild(link);
+      listEl.appendChild(li);
     });
-    i18nRefs.push({ node: li, type: "attr", attr: "title", getter: function (l) {
-      var c = content[l].characterSheet.certificates[idx];
-      return c.issuer + " (" + c.year + ")";
-    }});
-    textWrap.appendChild(titleEl);
-    textWrap.appendChild(issuerEl);
-    li.appendChild(medal);
-    li.appendChild(textWrap);
-    certList.appendChild(li);
-  });
+  }
+  renderDocList("cert-list", "certificates");
+  renderDocList("reference-list", "references");
 
   var dialog = document.getElementById("character-dialog");
   var lastTrigger = null;
