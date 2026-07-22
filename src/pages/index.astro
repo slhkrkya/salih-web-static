@@ -1667,7 +1667,8 @@ function ensureStars() {
     sceneStars.push({
       x: 30 + Math.random() * 24,
       y: 2 + Math.random() * 12,
-      on: Math.random() > 0.4
+      on: Math.random() > 0.4,
+      size: Math.random() > 0.82 ? 2 : 1
     });
   }
   return sceneStars;
@@ -1684,7 +1685,6 @@ function drawScene(scene, t) {
   var monitorFrame = dark ? "#0B0F1F" : "#1D2B53";
   var accent = cssVar("--accent") || "#FF3E7A";
   var led = cssVar("--led") || "#14C15A";
-  var secondary = cssVar("--secondary") || "#0091D6";
   var skyTop = dark ? "#0B1030" : "#8ED8FF";
   var skyBottom = dark ? "#232A55" : "#CDEBFF";
 
@@ -1705,19 +1705,41 @@ function drawScene(scene, t) {
   if (dark) {
     var stars = ensureStars();
     var blink = reduceMotion ? 1 : (Math.sin(t / 900) + 1) / 2;
+    ctx.fillStyle = "#FDF3E9";
     for (var i = 0; i < stars.length; i++) {
       var s = stars[i];
-      if (s.on || blink > 0.5) px(ctx, s.x, s.y, "#FDF3E9");
+      if (s.on || blink > 0.5) ctx.fillRect(Math.floor(s.x), Math.floor(s.y), s.size, s.size);
     }
+    var mx = wx + ww - 8, my = wy + 2;
     ctx.fillStyle = "#FDF3E9";
-    ctx.fillRect(wx + ww - 8, wy + 2, 5, 5);
+    ctx.fillRect(mx + 1, my, 3, 5);
+    ctx.fillRect(mx, my + 1, 5, 3);
+    ctx.fillStyle = "#D9CDB4";
+    ctx.fillRect(mx + 1, my + 2, 1, 1);
+    ctx.fillRect(mx + 3, my + 3, 1, 1);
   } else {
     ctx.fillStyle = "#FFE07A";
     ctx.fillRect(wx + ww - 8, wy + 2, 5, 5);
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(wx + 3, wy + 3, 4, 2);
-    ctx.fillRect(wx + 9, wy + 6, 5, 2);
+    ctx.fillRect(wx + 2, wy + 4, 6, 2);
+    ctx.fillRect(wx + 3, wy + 3, 4, 1);
+    ctx.fillRect(wx + 9, wy + 7, 7, 2);
+    ctx.fillRect(wx + 10, wy + 6, 4, 1);
   }
+
+  var roofColor = dark ? "#141A33" : "#B9C7D6";
+  ctx.fillStyle = roofColor;
+  ctx.fillRect(wx, wy + wh - 3, 4, 3);
+  ctx.fillRect(wx + 4, wy + wh - 5, 3, 5);
+  ctx.fillRect(wx + 8, wy + wh - 2, 5, 2);
+  ctx.fillRect(wx + 14, wy + wh - 4, 3, 4);
+  ctx.fillRect(wx + 18, wy + wh - 3, 2, 3);
+  if (dark) {
+    ctx.fillStyle = "#FFD76A";
+    ctx.fillRect(wx + 5, wy + wh - 3, 1, 1);
+    ctx.fillRect(wx + 15, wy + wh - 2, 1, 1);
+  }
+
   ctx.fillStyle = ink;
   ctx.fillRect(wx + ww / 2 - 1, wy, 1, wh);
   ctx.fillRect(wx, wy + wh / 2 - 1, ww, 1);
@@ -1732,32 +1754,85 @@ function drawScene(scene, t) {
   var monX = deskX + 4, monY = deskY - 9, monW = 12, monH = 8;
   ctx.fillStyle = monitorFrame;
   ctx.fillRect(monX, monY, monW, monH);
-  ctx.fillRect(monX + monW / 2 - 1, monY + monH, 2, 2);
+  ctx.fillRect(monX + monW / 2 - 1, monY + monH, 2, 1);
+  ctx.fillRect(monX + monW / 2 - 3, monY + monH + 1, 6, 1);
+  ctx.fillStyle = dark ? "#1C2340" : "#33447A";
+  ctx.fillRect(monX, monY, monW, 1);
+  ctx.fillRect(monX, monY, 1, monH);
   var glowPhase = reduceMotion ? 1 : (Math.sin(t / 700) + 1) / 2;
-  var screenColor = dark ? secondary : "#DDEBFF";
+  var screenColor = dark ? "#0A0E1C" : "#DDEBFF";
   ctx.fillStyle = screenColor;
   ctx.fillRect(monX + 1, monY + 1, monW - 2, monH - 2);
-  ctx.fillStyle = accent;
-  ctx.globalAlpha = 0.5 + glowPhase * 0.5;
-  ctx.fillRect(monX + 2, monY + 2, monW - 4, 1);
-  ctx.fillRect(monX + 2, monY + 4, (monW - 4) * 0.6, 1);
-  ctx.globalAlpha = 1;
-
-  var chairX = deskX + deskW + 3, chairY = deskY - 11;
-  ctx.fillStyle = ink;
-  ctx.fillRect(chairX + 1, chairY + 6, 8, 7);
-  ctx.fillRect(chairX + 2, chairY + 1, 6, 6);
-  ctx.fillStyle = "#E8B786";
-  var blinkEye = reduceMotion ? false : (Math.floor(t / 2600) % 46 === 0);
-  ctx.fillRect(chairX + 3, chairY + 2, 4, 4);
-  if (!blinkEye) {
-    ctx.fillStyle = ink;
-    ctx.fillRect(chairX + 4, chairY + 3, 1, 1);
-    ctx.fillRect(chairX + 6, chairY + 3, 1, 1);
+  if (!dark) {
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.5 + glowPhase * 0.5;
+    ctx.fillRect(monX + 2, monY + 2, monW - 4, 1);
+    ctx.fillRect(monX + 2, monY + 6, 3, 1);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = led;
+    ctx.globalAlpha = 0.7;
+    ctx.fillRect(monX + 2, monY + 4, 6, 1);
+    ctx.globalAlpha = 1;
+    var cursorOn = reduceMotion ? true : (Math.floor(t / 500) % 2 === 0);
+    if (cursorOn) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(monX + 6, monY + 6, 1, 1);
+    }
   }
-  ctx.fillStyle = led;
-  ctx.fillRect(chairX - 2, chairY + 8, 3, 5);
-  ctx.fillRect(chairX + 8, chairY + 8, 3, 5);
+
+  if (dark) {
+    /* asleep in bed, monitor off */
+    var bedX = 35, bedFrameY = 21;
+    ctx.fillStyle = deskDark;
+    ctx.fillRect(bedX - 1, 11, 3, 13);
+    ctx.fillRect(bedX - 1, bedFrameY, 19, 3);
+    ctx.fillStyle = "#2A3050";
+    ctx.fillRect(bedX + 3, bedFrameY - 2, 14, 2);
+    var bedBottom = 20;
+    var blanketH = 11;
+    var blanket = "#33407A", fold = "#4A5A9E";
+    ctx.fillStyle = blanket;
+    ctx.fillRect(bedX + 2, bedBottom - blanketH, 16, blanketH);
+    ctx.fillStyle = fold;
+    ctx.fillRect(bedX + 2, bedBottom - blanketH, 16, 1);
+    ctx.fillStyle = "#E9DCC9";
+    ctx.fillRect(bedX + 1, 12, 6, 3);
+    ctx.fillStyle = ink;
+    ctx.fillRect(bedX + 2, 8, 6, 5);
+    ctx.fillStyle = "#E8B786";
+    ctx.fillRect(bedX + 3, 9, 4, 3);
+    var zzAlpha = reduceMotion ? 0.85 : 0.35 + ((Math.sin(t / 1500) + 1) / 2) * 0.65;
+    ctx.globalAlpha = zzAlpha;
+    ctx.fillStyle = "#FDF3E9";
+    ctx.fillRect(bedX + 3, 4, 3, 1);
+    ctx.fillRect(bedX + 4, 5, 1, 1);
+    ctx.fillRect(bedX + 3, 6, 3, 1);
+    ctx.globalAlpha = 1;
+  } else {
+    var chairX = deskX + deskW + 3, chairY = deskY - 11;
+    ctx.fillStyle = ink;
+    ctx.fillRect(chairX + 1, chairY + 6, 8, 7);
+    ctx.fillRect(chairX + 2, chairY + 1, 6, 6);
+    ctx.fillRect(chairX + 1, chairY, 3, 1);
+    ctx.fillRect(chairX + 7, chairY + 1, 1, 2);
+    ctx.fillStyle = "#3A3F5C";
+    ctx.fillRect(chairX + 1, chairY + 6, 2, 7);
+    ctx.fillStyle = "#E8B786";
+    var blinkEye = reduceMotion ? false : (Math.floor(t / 2600) % 46 === 0);
+    ctx.fillRect(chairX + 3, chairY + 2, 4, 4);
+    ctx.fillRect(chairX, chairY + 12, 2, 2);
+    ctx.fillRect(chairX + 7, chairY + 12, 2, 2);
+    if (!blinkEye) {
+      ctx.fillStyle = ink;
+      ctx.fillRect(chairX + 4, chairY + 3, 1, 1);
+      ctx.fillRect(chairX + 6, chairY + 3, 1, 1);
+    }
+    ctx.fillStyle = ink;
+    ctx.fillRect(chairX + 4, chairY + 5, 3, 1);
+    ctx.fillStyle = led;
+    ctx.fillRect(chairX - 2, chairY + 8, 3, 5);
+    ctx.fillRect(chairX + 8, chairY + 8, 3, 5);
+  }
 
   ctx.fillStyle = ink;
   for (var lx = 0; lx < w; lx += 4) {
