@@ -339,6 +339,7 @@ dialog:focus-visible { outline: none; }
 .section {
   padding: 46px 0;
   border-bottom: 2px dashed var(--surface-soft);
+  scroll-margin-top: 56px;
 }
 .section:last-of-type { border-bottom: 0; }
 #journey { background: var(--surface-soft); }
@@ -1872,6 +1873,7 @@ function buildNav() {
 function jumpTo(id) {
   var target = document.getElementById(id);
   if (!target) return;
+  setActiveSection(id);
   target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
 }
 function setActiveSection(id) {
@@ -1883,15 +1885,37 @@ function setActiveSection(id) {
   });
 }
 function initSectionObserver() {
-  var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (entry.isIntersecting) setActiveSection(entry.target.id);
-    });
-  }, { rootMargin: "-40% 0px -50% 0px", threshold: 0 });
-  SECTION_IDS.forEach(function (id) {
-    var s = document.getElementById(id);
-    if (s) io.observe(s);
-  });
+  var sections = SECTION_IDS.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+  if (!sections.length) return;
+  var navEl = document.getElementById("route-compass");
+  var ticking = false;
+  function computeActive() {
+    ticking = false;
+    var doc = document.documentElement;
+    var atBottom = window.scrollY + window.innerHeight >= doc.scrollHeight - 2;
+    if (atBottom) {
+      setActiveSection(sections[sections.length - 1].id);
+      return;
+    }
+    var refLine = (navEl ? navEl.getBoundingClientRect().height : 0) + 24;
+    var activeId = sections[0].id;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top <= refLine) {
+        activeId = sections[i].id;
+      } else {
+        break;
+      }
+    }
+    setActiveSection(activeId);
+  }
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(computeActive);
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll, { passive: true });
+  computeActive();
 }
 
 /* ---------------- reveal on scroll ---------------- */
