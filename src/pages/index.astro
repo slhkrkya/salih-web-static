@@ -1645,7 +1645,7 @@ function cssVar(name) { return getComputedStyle(document.documentElement).getPro
 function px(ctx, x, y, color) { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1); }
 function makeCanvas(id, gridW, gridH, cell) {
   var canvas = document.getElementById(id);
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var dpr = Math.max(1, Math.round(Math.min(window.devicePixelRatio || 1, 2)));
   canvas.width = gridW * cell * dpr;
   canvas.height = gridH * cell * dpr;
   canvas.style.width = "100%";
@@ -1663,13 +1663,23 @@ var sceneStars = null;
 function ensureStars() {
   if (sceneStars) return sceneStars;
   sceneStars = [];
-  for (var i = 0; i < 26; i++) {
-    sceneStars.push({
-      x: 30 + Math.random() * 24,
-      y: 2 + Math.random() * 12,
-      on: Math.random() > 0.4,
-      size: Math.random() > 0.82 ? 2 : 1
-    });
+  var minX = 33, maxX = 51, minY = 4, maxY = 13, minDist = 3.5;
+  var moonCx = 46.5, moonCy = 7.5, moonAvoid = 4;
+  var mullionX = 41, mullionY = 9, mullionAvoid = 1;
+  var attempts = 0;
+  while (sceneStars.length < 10 && attempts < 1500) {
+    attempts++;
+    var x = minX + Math.random() * (maxX - minX);
+    var y = minY + Math.random() * (maxY - minY);
+    if (Math.hypot(x - moonCx, y - moonCy) < moonAvoid) continue;
+    if (Math.abs(x - mullionX) < mullionAvoid || Math.abs(y - mullionY) < mullionAvoid) continue;
+    var tooClose = false;
+    for (var i = 0; i < sceneStars.length; i++) {
+      var dx = sceneStars[i].x - x, dy = sceneStars[i].y - y;
+      if (dx * dx + dy * dy < minDist * minDist) { tooClose = true; break; }
+    }
+    if (tooClose) continue;
+    sceneStars.push({ x: x, y: y, size: 1, phase: Math.random() * Math.PI * 2 });
   }
   return sceneStars;
 }
@@ -1704,11 +1714,15 @@ function drawScene(scene, t) {
 
   if (dark) {
     var stars = ensureStars();
-    var blink = reduceMotion ? 1 : (Math.sin(t / 900) + 1) / 2;
-    ctx.fillStyle = "#FDF3E9";
+    var starDim = [138, 143, 163], starBright = [253, 243, 233];
     for (var i = 0; i < stars.length; i++) {
       var s = stars[i];
-      if (s.on || blink > 0.5) ctx.fillRect(Math.floor(s.x), Math.floor(s.y), s.size, s.size);
+      var tw = reduceMotion ? 1 : (Math.sin(t / 900 + s.phase) + 1) / 2;
+      var r = Math.round(starDim[0] + (starBright[0] - starDim[0]) * tw);
+      var g = Math.round(starDim[1] + (starBright[1] - starDim[1]) * tw);
+      var b = Math.round(starDim[2] + (starBright[2] - starDim[2]) * tw);
+      ctx.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+      ctx.fillRect(Math.floor(s.x), Math.floor(s.y), s.size, s.size);
     }
     var mx = wx + ww - 8, my = wy + 2;
     ctx.fillStyle = "#FDF3E9";
@@ -1801,13 +1815,6 @@ function drawScene(scene, t) {
     ctx.fillRect(bedX + 2, 8, 6, 5);
     ctx.fillStyle = "#E8B786";
     ctx.fillRect(bedX + 3, 9, 4, 3);
-    var zzAlpha = reduceMotion ? 0.85 : 0.35 + ((Math.sin(t / 1500) + 1) / 2) * 0.65;
-    ctx.globalAlpha = zzAlpha;
-    ctx.fillStyle = "#FDF3E9";
-    ctx.fillRect(bedX + 3, 4, 3, 1);
-    ctx.fillRect(bedX + 4, 5, 1, 1);
-    ctx.fillRect(bedX + 3, 6, 3, 1);
-    ctx.globalAlpha = 1;
   } else {
     var chairX = deskX + deskW + 3, chairY = deskY - 11;
     ctx.fillStyle = ink;
