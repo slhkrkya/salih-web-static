@@ -2,6 +2,36 @@
 const SITE_URL = (Astro.site ? Astro.site.toString() : "https://salihkarakaya.com.tr/").replace(/\/$/, "");
 const pageTitle = "Salih Karakaya — Full-Stack Bilgisayar Mühendisi";
 const pageDescription = "Multi-tenant SaaS ürünleri, AI agent platformları ve RAG sistemleri kuran full-stack mühendis Salih Karakaya'nın portfolyosu.";
+
+const personSchema = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Salih Karakaya",
+  "alternateName": "slhkrkya",
+  "url": SITE_URL + "/",
+  "jobTitle": "Full-Stack Bilgisayar Mühendisi",
+  "description": pageDescription,
+  "email": "mailto:slhkrkyh@gmail.com",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Ataşehir, İstanbul",
+    "addressCountry": "TR"
+  },
+  "alumniOf": {
+    "@type": "CollegeOrUniversity",
+    "name": "Gazi Üniversitesi"
+  },
+  "sameAs": [
+    "https://github.com/slhkrkya",
+    "https://www.linkedin.com/in/salih-karakaya-a43818299"
+  ],
+  "knowsAbout": [
+    "Full-Stack Development",
+    "Multi-tenant SaaS",
+    "AI Agent Platformları",
+    "RAG Sistemleri"
+  ]
+};
 ---
 
 <!doctype html>
@@ -21,9 +51,16 @@ const pageDescription = "Multi-tenant SaaS ürünleri, AI agent platformları ve
   <meta property="og:url" content={SITE_URL + "/"} />
   <meta property="og:locale" content="tr_TR" />
   <meta property="og:locale:alternate" content="en_US" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:image" content={SITE_URL + "/og-image.png"} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={pageTitle} />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={pageTitle} />
   <meta name="twitter:description" content={pageDescription} />
+  <meta name="twitter:image" content={SITE_URL + "/og-image.png"} />
+
+  <script type="application/ld+json" set:html={JSON.stringify(personSchema)}></script>
 
 <style is:global>
 :root {
