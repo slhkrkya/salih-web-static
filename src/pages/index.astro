@@ -12,11 +12,6 @@ const personSchema = {
   "jobTitle": "Full-Stack Bilgisayar Mühendisi",
   "description": pageDescription,
   "email": "mailto:slhkrkyh@gmail.com",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Ataşehir, İstanbul",
-    "addressCountry": "TR"
-  },
   "alumniOf": {
     "@type": "CollegeOrUniversity",
     "name": "Gazi Üniversitesi"
@@ -179,12 +174,6 @@ dialog:focus-visible { outline: none; }
   margin: 0;
   font-size: 1.05rem;
   color: var(--ink-soft);
-}
-.hero-location {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--ink-soft);
-  font-family: var(--font-mono);
 }
 .hero-hook {
   margin: 6px 0 4px;
@@ -856,7 +845,7 @@ footer.site-footer {
 <noscript>
   <div style="max-width:640px;margin:32px auto;padding:20px;font-family:sans-serif;line-height:1.6;">
     <h1 style="margin:0 0 6px;">Salih Karakaya</h1>
-    <p style="margin:0 0 4px;">Full-Stack Bilgisayar Mühendisi · Ataşehir/İstanbul<br>Full-Stack Computer Engineer · Ataşehir, Istanbul</p>
+    <p style="margin:0 0 4px;">Full-Stack Bilgisayar Mühendisi<br>Full-Stack Computer Engineer</p>
     <p>Multi-tenant SaaS ürünleri ve AI agent platformları kuran full-stack mühendis. / A full-stack engineer building multi-tenant SaaS products and AI agent platforms.</p>
     <p>Bitirme tezinde (Prompt Injection Savunması) saldırı başarı oranını %95,19'dan %0,48'e düşürdüm, F1 skoru %83,81. / In my thesis (Prompt Injection Defense) I cut the attack success rate from 95.19% to 0.48%, with an F1 score of 83.81%.</p>
     <p>
@@ -874,7 +863,6 @@ footer.site-footer {
       <p class="eyebrow" data-i18n="hero.heading">Merhaba — Ben Salih</p>
       <h1 class="hero-name" data-i18n="hero.name">Salih Karakaya</h1>
       <p class="hero-title" data-i18n="hero.title">Full-Stack Bilgisayar Mühendisi</p>
-      <p class="hero-location tabular" data-i18n="hero.location">Ataşehir, İstanbul</p>
       <p class="hero-hook" data-i18n="hero.hook">Multi-tenant SaaS ürünleri ve AI agent platformları kuran full-stack mühendis.</p>
       <div class="hero-links" id="hero-links"></div>
     </div>
@@ -1022,7 +1010,7 @@ footer.site-footer {
     </div>
     <p class="dialog-section-label" data-i18n="characterSheet.education.label">Eğitim</p>
     <div class="stat-line"><span class="stat-line-label" id="edu-school-label">Gazi Üniversitesi</span><span id="edu-degree">Bilgisayar Mühendisliği</span></div>
-    <div class="stat-line"><span class="stat-line-label">GPA</span><span class="tabular" id="edu-gpa">3.11/4.00</span></div>
+    <div class="stat-line"><span class="stat-line-label" id="edu-gpa-label">GNO</span><span class="tabular" id="edu-gpa">3.11/4.00</span></div>
     <div class="stat-line"><span class="stat-line-label" id="edu-grad-label">Mezuniyet</span><span class="tabular" id="edu-grad">Haziran 2026</span></div>
     <p class="dialog-section-label" data-i18n="characterSheet.language.label">Dil</p>
     <div class="stat-line"><span class="stat-line-label" id="lang-name">İngilizce</span><span id="lang-level">B2</span></div>
@@ -1051,7 +1039,6 @@ var content = {
       "heading": "Merhaba — Ben Salih",
       "name": "Salih Karakaya",
       "title": "Full-Stack Bilgisayar Mühendisi",
-      "location": "Ataşehir, İstanbul",
       "hook": "Multi-tenant SaaS ürünleri ve AI agent platformları kuran full-stack mühendis.",
       "bubble": "Merhaba, ben Salih. Aşağıda ne yaptığıma bakabilirsin.",
       "links": {
@@ -1109,13 +1096,28 @@ var content = {
       "detailsToggleLabel": "Detaylar",
       "projects": [
         {
+          "id": "planora",
+          "title": "Planora — Mekan/Etkinlik Rezervasyon Pazaryeri",
+          "meta": "Temmuz 2026 – Halen · 3 geliştirici + 1 PM",
+          "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
+          "techBadges": ["SEO Automation", "Slug Routing", "GitLab CI/CD"],
+          "tech": [".NET 9", "Angular 20", "EF Core", "CQRS", "MediatR", "GitLab CI/CD", "JSON-LD", "ffmpeg"],
+          "summary": "Bu mekan/etkinlik rezervasyon pazaryerinde proje yöneticisi olarak 3 kişilik geliştirici ekibini yönetiyorum; SEO altyapısını ve GUID'den slug'a public URL mimarisini uçtan uca ben kurdum.",
+          "details": [
+            "Projeyi Jira üzerinden 3 kişilik ekibe task açarak yönettim ve code review süreçlerinin sahipliğini üstlendim.",
+            "Merkezi bir SeoService ile title, meta ve Open Graph etiketlerini otomatik hale getirdim; özel paylaşım görseli ve otomatik güncellenen sitemap.xml'i uçtan uca kurdum.",
+            "Public sayfalardaki GUID'li URL'leri SEO uyumlu, okunaklı slug yapısına taşıdım; rezervasyon gibi iç işlemler teknik kimlikleri korumaya devam ediyor."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
           "id": "yoder",
           "title": "YODER Dernek Projesi",
           "meta": "Mayıs–Haziran 2026 · 4 geliştirici + 1 PM",
           "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
           "techBadges": [".NET", "Angular", "PostgreSQL"],
           "tech": [".NET", "Angular", "PostgreSQL", "Hangfire", "SignalR", "3CX", "WhatsApp/WATI"],
-          "summary": "Bir derneğin üyelik, bağış ve iletişim süreçlerini tek platformda topladım.",
+          "summary": "Bir derneğin üyelik, bağış ve iletişim süreçlerini tek platformda toplayan bu projede geliştirici olarak yer aldım.",
           "details": [
             "MutluCell SMS entegrasyonunu AddRange + UnitOfWork deseniyle kurdum; toplu bildirimler tek işlemde güvenle gidiyor.",
             "3CX rehber senkronizasyonu ve Kumbara modülündeki self-referencing parent-child yapı + harita görselleştirmesiyle bağış ağını görünür kıldım.",
@@ -1349,7 +1351,6 @@ var content = {
       "heading": "Hi — I'm Salih",
       "name": "Salih Karakaya",
       "title": "Full-Stack Computer Engineer",
-      "location": "Ataşehir, Istanbul",
       "hook": "A full-stack engineer building multi-tenant SaaS products and AI agent platforms.",
       "bubble": "Hi, I'm Salih. Scroll down to see what I've built.",
       "links": {
@@ -1399,13 +1400,28 @@ var content = {
       "detailsToggleLabel": "Details",
       "projects": [
         {
+          "id": "planora",
+          "title": "Planora — Venue/Event Booking Marketplace",
+          "meta": "July 2026 – Present · 3 developers + 1 PM",
+          "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
+          "techBadges": ["SEO Automation", "Slug Routing", "GitLab CI/CD"],
+          "tech": [".NET 9", "Angular 20", "EF Core", "CQRS", "MediatR", "GitLab CI/CD", "JSON-LD", "ffmpeg"],
+          "summary": "Lead the 3-developer team as project manager on this venue/event booking marketplace, and built its SEO layer and end-to-end GUID-to-slug public URL migration.",
+          "details": [
+            "Managed the project by assigning tasks to a 3-person team through Jira and owned the code review process.",
+            "Built a central SeoService that automates titles, meta tags, and Open Graph data; shipped a custom share image and an auto-updating sitemap.xml end to end.",
+            "Moved public pages from GUID-based URLs to clean, SEO-friendly slugs, while internal operations like reservations still use the technical IDs."
+          ],
+          "link": { "type": "locked" }
+        },
+        {
           "id": "yoder",
           "title": "YODER Association Platform",
           "meta": "May–June 2026 · 4 developers + 1 PM",
           "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
           "techBadges": [".NET", "Angular", "PostgreSQL"],
           "tech": [".NET", "Angular", "PostgreSQL", "Hangfire", "SignalR", "3CX", "WhatsApp/WATI"],
-          "summary": "Brought a nonprofit's membership, donations, and communications into one platform.",
+          "summary": "Worked as a developer on this project, building a platform that unifies a nonprofit's membership, donations, and communications.",
           "details": [
             "Built the MutluCell SMS integration on an AddRange + UnitOfWork pattern, so bulk notifications go out safely in a single transaction.",
             "Synced the 3CX phone directory and built the Kumbara (donation box) module on a self-referencing parent-child structure with map visualization, making the donation network visible.",
@@ -2484,6 +2500,7 @@ function buildCharacterDialog() {
   bindText(document.getElementById("edu-degree"), function (l) { return content[l].characterSheet.education.degree; });
   bindText(document.getElementById("edu-gpa"), function (l) { return content[l].characterSheet.education.gpa; });
   bindText(document.getElementById("edu-grad-label"), function (l) { return l === "tr" ? "Mezuniyet" : "Graduation"; });
+  bindText(document.getElementById("edu-gpa-label"), function (l) { return l === "tr" ? "GNO" : "GPA"; });
   bindText(document.getElementById("edu-grad"), function (l) { return content[l].characterSheet.education.graduation; });
   bindText(document.getElementById("lang-name"), function (l) { return content[l].characterSheet.language.name; });
   bindText(document.getElementById("lang-level"), function (l) { return content[l].characterSheet.language.level; });
