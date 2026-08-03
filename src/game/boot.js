@@ -82,8 +82,11 @@ import EN from "./text/en.js";
 import { createHud } from "./hud.js";
 import {
   drawTitle, drawPause, drawMap, drawStageConfirm, drawEnd, drawReset,
+  drawBoard, drawNameEntry,
   drawControls, stageRowRect, confirmRects, hitRect, STAGE_COUNT
 } from "./screens.js";
+import { createSpeedrun } from "./speedrun.js";
+import { createLeaderboard, sanitizeName, NAME_MAX } from "./leaderboard.js";
 import { createSceneManager, SCENE } from "./scenes.js";
 import { createTelemetry } from "./telemetry.js";
 import { createFakeTiles } from "./faketiles.js";
@@ -216,6 +219,8 @@ export function boot(canvas, opts) {
   const arenaWalls = createArenaWalls();
   const audio = createAudio();
   audio.setEnabled(audioEnabled);
+  const speedrun = createSpeedrun();
+  const board = createLeaderboard();
 
   const { save, corrupted } = SaveMod.load();
   if (corrupted && o.bridge && typeof o.bridge.announce === "function") {
@@ -434,6 +439,16 @@ export function boot(canvas, opts) {
    * w1.ghostChaseStartX'ti — kok neden buydu, bkz. startGhostChase(). */
   let ghostOriginX = 0;
   let ghostRestartPending = false;
+  /* Serit cekisi bayraklari. Bildirimleri BURADA (kullanildiklari yerin cok
+   * ustunde) duruyor cunku hem boot'un "kayittan devam" dali hem de SÜRE
+   * MODU'ndan cikis ayni resumeFromSave()'i cagiriyor — bildirim asagida
+   * kalsaydi boot dalindaki cagri TDZ hatasi verirdi. */
+  let drainedB1 = false, drainedD1 = false, drainedPostBoss = false;
+  let drainedW6Mid = false, drainedW6End = false, drainedW6PostBoss = false;
+  /* AYNA yenilince gelen ek serit cekisi. RATE_V0.drains.w6 = 3 bir ASGARI
+   * yeterlilik kontroludur (assertRateCurveV0), tavan degil — dorduncu bir
+   * cekis egriyi bozmaz, yalniz SON SINAV boyunca biriken itaati odullendirir. */
+  let drainedW6Mirror = false;
   let hotChannelX1 = null, hotChannelTimer = 0;
   /* KIVILCIM YAĞMURU seridi (X1). SICAK KANAL ile ayni desen: tile bayragi
    * degil, x-araligi + kare sayaci. */
@@ -442,6 +457,20 @@ export function boot(canvas, opts) {
   let mergeTimer = 0, mergeStartRate = 0;
   let epFinishHandled = false, epClosing = false, epClosingTimer = 0, epF4Shown = false;
   let revertTimer = 0;   /* 0 = normal oyun; >0 = isinlanma dizisi suruyor (bkz. triggerRevert) */
+
+  /* ------------------------------------------------------------- SÜRE MODU */
+  /* Kosu boyunca `save` GECICI bir kopyadir; gercegi burada durur ve kosu
+   * bitince/birakilinca aynen geri gelir. Oyuncunun normal ilerlemesi bir
+   * kosu yuzunden ASLA degismez — modun tek sarti "herkes bastan baslar"
+   * oldugu icin, bunun bedelini kayda odetmek kabul edilemezdi. */
+  let saveSnapshot = null;
+  let suppressPersist = false;
+  let runResultMs = 0, runBalanced = false, runRank = 0, runRecord = false;
+  let boardHighlight = null;
+  /* Isim girisi GERCEK bir DOM <input>'u kullanir (mobilde sistem klavyesi
+   * acilsin, Turkce karakterler kaybolmasin diye) — canvas'a yazi cizmek
+   * bizim isimiz, tus toplamak tarayicininki. */
+  let nameEl = null, nameValue = "", nameSending = false, nameStatus = "";
 
   /* bulunan gercek eksik: save.world/save.checkpoint HEP yaziliyordu (bkz.
    * persistProgress) ama boot() BUNLARI HICBIR ZAMAN okumuyordu — TITLE'daki
@@ -482,22 +511,8 @@ export function boot(canvas, opts) {
     cam.setBounds(ep.map.pxW, ep.map.pxH);
     cam.snapTo(ep.spawnX, ep.spawnY);
     checkpointX = ep.spawnX; checkpointY = ep.spawnY;
-  } else if (save.world > 0 && save.checkpoint > 0) {
-    currentWorld = save.world;
-    const wd = worldData();
-    spawnWorldEnemies(wd);
-    /* BOZUK KAYIT ONARIMI: yukarida anlatilan hata, cukurun dibine yazilmis
-     * bir checkpointY'yi KAYDA da islemis olabilir (persistProgress her
-     * kapanista yazar). Boyle bir kayitla devam eden oyuncu, kod duzeltilmis
-     * olsa bile dogar dogmaz olmeye devam ederdi. Olumcul yukseklikteki bir
-     * kayit noktasi sessizce dunyanin dogus noktasina cekilir. */
-    const savedY = save.checkpointY || wd.spawnY;
-    const poisoned = savedY + COMMIT_BODY_UP >= HAZARD_FLOOR_Y;
-    body.x = poisoned ? wd.spawnX : (save.checkpointX || wd.spawnX);
-    body.y = poisoned ? wd.spawnY : savedY;
-    cam.setBounds(wd.map.pxW, wd.map.pxH);
-    cam.snapTo(body.x, body.y);
-    checkpointX = body.x; checkpointY = body.y;
+  } else {
+    resumeFromSave();
   }
 
   const GHOST_FALLBACK_SPEED = 2.60;   /* §5.3: "REGRESYON hayalet yarışı, W0 sabitleri, 2,60 px/f" */
@@ -528,9 +543,10 @@ export function boot(canvas, opts) {
    * ve bu oturumun currentWorld'unden turetilir. */
   const WORLD_ORDER = [0, 1, 6, 7];
   function worldOrdinal(w) { return w === 0 ? 0 : w === 1 ? 1 : w === 6 ? 2 : 3; }
-  let maxWorldReached = worldOrdinal(currentWorld);
-  if (save.finished) maxWorldReached = WORLD_ORDER.length - 1;
-  else if (save.world > 0) maxWorldReached = Math.max(maxWorldReached, worldOrdinal(save.world));
+  /* Tek kaynak: recomputeMaxWorld() (hoisted). SÜRE MODU birakilinca da AYNI
+   * fonksiyon cagrilir — kosu sirasinda ilerleyen sayac gercek kayda sizmasin. */
+  let maxWorldReached = 0;
+  recomputeMaxWorld();
   function noteWorldReached() {
     const o2 = worldOrdinal(currentWorld);
     if (o2 > maxWorldReached) maxWorldReached = o2;
@@ -718,8 +734,6 @@ export function boot(canvas, opts) {
     if (body.x >= w1B1EndX && rate > RATE_V0.floor.w1 && !drainedB1) { applyDrain(RATE_V0.floor.w1, RATE_V0.per.w1); drainedB1 = true; }
     if (body.x >= w1D1EndX && !drainedD1) { applyDrain(RATE_V0.floor.w1, RATE_V0.per.w1); drainedD1 = true; }
   }
-  let drainedB1 = false, drainedD1 = false, drainedPostBoss = false;
-
   /* W6: d1 (A6 ortasi) + d2 (A6 sonu, YOKSAY tetiklenmeden hemen once) — d3
    * (R1 sonu, MERGE'e girmeden, postBoss:true) updateOverrideBoss'un YOKSAY
    * yenildikten sonraki hareketiyle dogal olarak saglanir (§12-2 kurali:
@@ -733,27 +747,6 @@ export function boot(canvas, opts) {
     if (!drainedW6End && body.x >= w6.bossTriggerX) { applyDrain(RATE_V0.floor.w6, RATE_V0.per.w6); drainedW6End = true; }
     if (!drainedW6PostBoss && body.x >= w6.mergeTriggerX) { applyDrain(RATE_V0.floor.w6, RATE_V0.per.w6); drainedW6PostBoss = true; }
   }
-  let drainedW6Mid = false, drainedW6End = false, drainedW6PostBoss = false;
-  /* AYNA yenilince gelen ek serit cekisi. RATE_V0.drains.w6 = 3 bir ASGARI
-   * yeterlilik kontroludur (assertRateCurveV0), tavan degil — dorduncu bir
-   * cekis egriyi bozmaz, yalniz SON SINAV boyunca biriken itaati odullendirir. */
-  let drainedW6Mirror = false;
-
-  /* Devam-yakalama: resume commit tasi zaten bir esigin GERISINDEYSE, o esik
-   * tekrar draine OLMASIN (yukaridaki resume dalinin devami — checkpointX o
-   * an zaten belli oldugu icin buraya, `let` bildirimlerinden SONRAYA konur). */
-  if (save.world > 0 && save.checkpoint > 0) {
-    if (currentWorld === 1) {
-      drainedB1 = checkpointX >= w1B1EndX;
-      drainedD1 = checkpointX >= w1D1EndX;
-      drainedPostBoss = checkpointX >= w1.exitX;
-    } else if (currentWorld === 6) {
-      drainedW6Mid = checkpointX >= w6MidA6X;
-      drainedW6End = checkpointX >= w6.bossTriggerX;
-      drainedW6PostBoss = checkpointX >= w6.mergeTriggerX;
-    }
-  }
-
   /* SICAK KANAL: bir hazards.hotChannels bolgesine girilince 40 kare icinde
    * x1'i gecmezsen REVERT (tile bayragi degil, x-araligi + sayac — bkz.
    * boot.js basi SADELESTIRME notu). */
@@ -951,6 +944,7 @@ export function boot(canvas, opts) {
 
   function tryWorldTransition() {
     if (currentWorld === 0 && body.x >= w0.exitX - 8) {
+      speedrun.split("w0");
       currentWorld = 1;
       noteWorldReached();
       spawnWorldEnemies(w1);
@@ -962,6 +956,7 @@ export function boot(canvas, opts) {
       return;
     }
     if (currentWorld === 1 && boss && boss.isDefeated && body.x >= w1.exitX - 8) {
+      speedrun.split("w1");
       currentWorld = 6;
       noteWorldReached();
       spawnWorldEnemies(w6);
@@ -1296,6 +1291,7 @@ export function boot(canvas, opts) {
       /* MERGE oyunu BITIRMEZ — YOKSAY commit grafiginde ebeveyn dugum olur ve
        * W6 -> EP'ye gecilir (§2.4/§6.1). Gercek `finished` EP'nin bitis
        * cizgisinde yazilir (bkz. updateEPFinish/updateEPClosing). */
+      speedrun.split("w6");
       currentWorld = 7;
       noteWorldReached();   /* EP artik BÖLÜM SEÇ'te acik */
       spawnWorldEnemies(ep);
@@ -1312,6 +1308,14 @@ export function boot(canvas, opts) {
       epFinishHandled = true;
       epClosing = true;
       epClosingTimer = 0;
+      /* KRONOMETRE BITIS CIZGISINDE DURUR, epilog kapanisinda degil. Klasik
+       * kural: sure hedefe DOKUNULDUGU anda biter; sonrasindaki 6 saniyelik
+       * sinematik ve isim ekrani kimsenin suresine yazilmaz. */
+      if (speedrun.active && !speedrun.finished) {
+        speedrun.split("ep");
+        runResultMs = speedrun.finish();
+        runBalanced = !!(save.settings && save.settings.balanced);
+      }
     }
   }
 
@@ -1335,17 +1339,28 @@ export function boot(canvas, opts) {
       save.finished = true;
       save.ratio = rate;
       SaveMod.assertFinish(save);
-      SaveMod.write(save);
+      /* SÜRE MODU'nda `save` GECICI bir kopyadir (bkz. beginSpeedrun) — onu
+       * diske yazmak oyuncunun GERCEK ilerlemesini silerdi. Gercek kayit
+       * isim ekraninin ardindan, restoreSaveAfterRun() ile geri gelir. */
+      if (!speedrun.active) SaveMod.write(save);
       gameFinished = true;
-      sceneManager.replace(SCENE.END);
+      if (speedrun.active) openNameEntry();
+      else sceneManager.replace(SCENE.END);
     }
   }
 
   function hasSaveData() { return save.checkpoint > 0 || (save.ratio && save.ratio !== RATE_V0.start); }
 
-  function performFullReset() {
-    SaveMod.reset();
-    Object.assign(save, SaveMod.defaultSave());
+  /* ==========================================================================
+   * CALISMA ZAMANINI BASA ALMA — kayittan BAGIMSIZ
+   * ==========================================================================
+   * "BAŞTAN" (RESET) ile SÜRE MODU'nun ihtiyaci AYNI: dunyayi, patronlari,
+   * sayaclari, hayaleti, karolari W0'in ilk karesine dondurmek. Ayrildiklari
+   * tek nokta KAYIT: RESET onu SILER, SÜRE MODU ise ona HIC DOKUNMAZ (gecici
+   * bir kopyayla kosar). Ortak kisim burada tek bir yerde durur ki iki yol
+   * zaman icinde birbirinden sessizce ayrilmasin — bir alan eklendiginde iki
+   * ayri listeye eklemeyi unutmak, tam da bu dosyada defalarca hata uretti. */
+  function resetRuntimeToStart() {
     rate = RATE_V0.start;
     currentWorld = 0;
     verbs.reset();
@@ -1369,6 +1384,10 @@ export function boot(canvas, opts) {
     introHintFrames = INTRO_HINT_FRAMES;
     maxWorldReached = 0;
     sceneManager.clearDialogue();
+    /* Susturma varsayilan olarak KALKAR; SÜRE MODU'na giren yol bunu hemen
+     * ardindan tekrar kurar (bkz. beginSpeedrun). Boylece hangi yoldan
+     * gelinirse gelinsin normal oyun ipucusuz kalamaz. */
+    sceneManager.setMuted(false);
     fakeTiles.reset();
     arenaWalls.reset();
     ghost.reset();
@@ -1378,10 +1397,267 @@ export function boot(canvas, opts) {
     cam.snapTo(w0.spawnX, w0.spawnY);
     checkpointX = w0.spawnX; checkpointY = w0.spawnY;
     audio.startDrone();   /* MERGE'de durmus olabilir (bkz. updateMerge) */
-    touchSettings.set("auto");
-    input.setTouchOverride("auto");
     perf.reset();
     a11yAnnouncer.reset();
+  }
+
+  function performFullReset() {
+    SaveMod.reset();
+    Object.assign(save, SaveMod.defaultSave());
+    resetRuntimeToStart();
+    /* Dokunmatik tercihi YALNIZ gercek "BAŞTAN"da sifirlanir — bir kosuya
+     * girerken oyuncunun kontrol tercihini elinden almak anlamsiz olurdu. */
+    touchSettings.set("auto");
+    input.setTouchOverride("auto");
+  }
+
+  /* ==========================================================================
+   * SÜRE MODU — bastan sona tek kosu, kronometreli
+   * ==========================================================================
+   * Istenen davranis aynen: bu moda giren HERKES bastan baslar (bolumleri
+   * bitirmis olmak bir sey degistirmez, adil olsun) ve kronometre klasik
+   * sekilde isler — olumde durmaz.
+   *
+   * UC KURAL, uc ayri yerde uygulanir:
+   *   1. TEMIZ BASLANGIC : `save` gecici bir varsayilan kayitla degistirilir,
+   *      calisma zamani W0'in ilk karesine alinir. Pip'ler, fiiller, oran —
+   *      hepsi sifirdan. Ayarlar (KOLAY MOD, dokunmatik, ses) KORUNUR: onlar
+   *      ilerleme degil, erisilebilirlik tercihi.
+   *   2. KAYDA DOKUNMAMA : persistProgress ve bitis yazimi kosu boyunca
+   *      susturulur; gercek kayit `saveSnapshot`'ta bekler.
+   *   3. KISAYOL YOK     : BÖLÜM SEÇ kosu sirasinda acilmaz (bkz. onMap).
+   * ========================================================================== */
+  function applySaveVerbs() {
+    if (save.verbs & (1 << SaveMod.PIP_BIT.REWRITE)) verbs.unlock(VERB.REWRITE);
+    if (save.verbs & (1 << SaveMod.PIP_BIT.SHELL)) verbs.unlock(VERB.SHOOT);
+  }
+
+  function recomputeMaxWorld() {
+    maxWorldReached = worldOrdinal(currentWorld);
+    if (save.finished) maxWorldReached = WORLD_ORDER.length - 1;
+    else if (save.world > 0) maxWorldReached = Math.max(maxWorldReached, worldOrdinal(save.world));
+  }
+
+  /* ==========================================================================
+   * KAYITTAN DEVAM — tek yer
+   * ==========================================================================
+   * Iki cagiran var: boot'un acilis dali ve SÜRE MODU'ndan cikis. Ikisi de
+   * AYNI seyi ister (dunya, konum, kamera, commit tasi ve serit cekisi
+   * bayraklari kayitla tutarli olsun); ayri ayri yazilsalardi biri
+   * guncellenip digeri unutulurdu. Kosudan cikan oyuncu bu sayede kendi
+   * kaldigi yere doner — sayfayi yenilemesi gerekmez. */
+  function resumeFromSave() {
+    if (!(save.world > 0 && save.checkpoint > 0)) return false;
+    currentWorld = save.world;
+    const wd = worldData();
+    spawnWorldEnemies(wd);
+    /* BOZUK KAYIT ONARIMI: commit tasinin Y'si eskiden `body.y`den geliyordu
+     * ve bir cukura duserken tasin x'i gecilirse cukurun dibine yaziliyordu
+     * (bkz. commitAtBeacon). Boyle bir kayit diske de islenmis olabilir;
+     * olumcul yukseklikteki bir kayit noktasi sessizce dunyanin dogus
+     * noktasina cekilir, yoksa oyuncu dogar dogmaz olmeye devam ederdi. */
+    const savedY = save.checkpointY || wd.spawnY;
+    const poisoned = savedY + COMMIT_BODY_UP >= HAZARD_FLOOR_Y;
+    body.x = poisoned ? wd.spawnX : (save.checkpointX || wd.spawnX);
+    body.y = poisoned ? wd.spawnY : savedY;
+    body.vx = 0; body.vy = 0;
+    cam.setBounds(wd.map.pxW, wd.map.pxH);
+    cam.snapTo(body.x, body.y);
+    checkpointX = body.x; checkpointY = body.y;
+    /* Devam-yakalama: commit tasi zaten bir esigin GERISINDEYSE o esik tekrar
+     * draine olmasin. */
+    if (currentWorld === 1) {
+      drainedB1 = checkpointX >= w1B1EndX;
+      drainedD1 = checkpointX >= w1D1EndX;
+      drainedPostBoss = checkpointX >= w1.exitX;
+    } else if (currentWorld === 6) {
+      drainedW6Mid = checkpointX >= w6MidA6X;
+      drainedW6End = checkpointX >= w6.bossTriggerX;
+      drainedW6PostBoss = checkpointX >= w6.mergeTriggerX;
+    }
+    return true;
+  }
+
+  /* Kosu bitti ya da birakildi: yigin TEK katmana indirilip TITLE serilir
+   * (aksi halde SKOR TABLOSU'ndan ZIPLA'ya basan oyuncu hicbir yere donemez —
+   * kosu baslarken yigin zaten [PLAY]'e indirgeniyor) ve calisma zamani
+   * GERCEK kayitla tutarli hale gelir. */
+  function endRunSession() {
+    sceneManager.setMuted(false);   /* normal oyunda ipuclari geri gelir */
+    let guard = 8;
+    while (guard-- > 0) {
+      const before = sceneManager.current;
+      sceneManager.back();
+      if (sceneManager.current === before) break;
+    }
+    sceneManager.replace(SCENE.TITLE);
+    suppressPersist = true;
+    resetRuntimeToStart();
+    applySaveVerbs();
+    rate = save.ratio || RATE_V0.start;
+    resumeFromSave();
+    suppressPersist = false;
+    recomputeMaxWorld();
+  }
+
+  function beginSpeedrun() {
+    if (!saveSnapshot) {
+      try { saveSnapshot = JSON.parse(JSON.stringify(save)); } catch (e) { saveSnapshot = null; }
+    }
+    const settings = save.settings;
+    Object.assign(save, SaveMod.defaultSave());
+    save.settings = settings;
+    resetRuntimeToStart();
+    runResultMs = 0; runRank = 0; runRecord = false; runBalanced = false;
+    boardHighlight = null; nameValue = ""; nameSending = false; nameStatus = "";
+    speedrun.start();
+
+    /* BOARD ekrani yigina BINMIS olabilir (TITLE > BOARD ya da PAUSE > BOARD);
+     * commitStage ile ayni desen: once poplanabildigi kadar popla, kalani
+     * PLAY ile DEGISTIR. */
+    let guard = 8;
+    while (sceneManager.current !== SCENE.PLAY && guard-- > 0) {
+      const before = sceneManager.current;
+      sceneManager.back();
+      if (sceneManager.current === before) break;
+    }
+    if (sceneManager.current !== SCENE.PLAY) sceneManager.replace(SCENE.PLAY);
+    /* IPUCU YOK. Kosu boyunca hicbir balon acilmaz: ne giris sinemasi, ne
+     * patron tanitimlari, ne pip aciklamalari, ne kapi uyarilari. Iki
+     * gerekce: (1) bu modu oynayan oyun zaten bitirmis, ipuclari ona bir sey
+     * ogretmiyor; (2) balon acikken fizik TAMAMEN donuyor — "oyun durmusken
+     * kronometre isliyor" adaletsiz gorunuyordu. Susturma sahne yoneticisinde
+     * TEK bir anahtarla yapilir, boylece cutscene.js'ten gelen tetikler de
+     * kendiliginden kapanir (bkz. scenes.js setMuted). */
+    sceneManager.setMuted(true);
+    loop.resume();
+  }
+
+  function restoreSaveAfterRun() {
+    if (!saveSnapshot) return;
+    Object.assign(save, saveSnapshot);
+    saveSnapshot = null;
+    SaveMod.write(save);
+  }
+
+  /* Kosuyu YARIDA birakma (DURAKLAT'tan L). Gercek kayit geri gelir, calisma
+   * zamani temiz bir W0'a doner ve baslik ekranina cikilir. `suppressPersist`
+   * sart: enterWorld/persistProgress bu arada devreye girip gercek kaydin
+   * uzerine "W0, checkpoint yok" yazamamali. */
+  function abortSpeedrun() {
+    if (!speedrun.active) return;
+    speedrun.abort();
+    runResultMs = 0; runRank = 0; runRecord = false;
+    closeNameEntry();
+    restoreSaveAfterRun();
+    endRunSession();
+    loop.pause();
+    loop.renderOnce();
+  }
+
+  /* ------------------------------------------------------- isim girisi (DOM) */
+  function onNameKeyDown(e) {
+    /* HER tusu burada TUKET: ESC'i launcher dinliyor (overlay'i kapatir) ve
+     * BOŞLUK sayfayi kaydirir. Odak bu kutudayken hicbiri disari sizmamali. */
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      finishNameEntry(nameEl ? nameEl.value : "", true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      finishNameEntry("", false);
+    }
+  }
+  function onNameInput() {
+    nameValue = sanitizeName(nameEl ? nameEl.value : "");
+  }
+
+  function openNameEntry() {
+    sceneManager.replace(SCENE.NAME);
+    nameValue = ""; nameSending = false; nameStatus = "";
+    runRecord = (() => { const b = board.bestMs(); return b === 0 || runResultMs < b; })();
+    if (typeof document === "undefined" || nameEl) return;
+    const el = document.createElement("input");
+    el.type = "text";
+    el.maxLength = NAME_MAX;
+    el.autocomplete = "off";
+    el.setAttribute("aria-label", i18n.lex("enterName"));
+    /* Gorunmez ama ODAKLANABILIR ve EKRANDA: `display:none` ya da ekran disi
+     * bir kutu mobilde sistem klavyesini acmaz. Saydam birakip canvas'in
+     * uzerine koyuyoruz; cizimi biz yapiyoruz. 16px font iOS'un otomatik
+     * yakinlastirmasini onler. */
+    el.style.cssText = "position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);" +
+      "width:200px;height:24px;opacity:0;border:0;background:transparent;color:transparent;" +
+      "font-size:16px;z-index:2;caret-color:transparent;";
+    const host = canvas.parentNode || document.body;
+    host.appendChild(el);
+    el.addEventListener("keydown", onNameKeyDown);
+    el.addEventListener("input", onNameInput);
+    nameEl = el;
+    input.setTextMode(true);
+    try { el.focus(); } catch (e) {}
+  }
+
+  function closeNameEntry() {
+    input.setTextMode(false);
+    if (!nameEl) return;
+    nameEl.removeEventListener("keydown", onNameKeyDown);
+    nameEl.removeEventListener("input", onNameInput);
+    if (nameEl.parentNode) nameEl.parentNode.removeChild(nameEl);
+    nameEl = null;
+  }
+
+  /* `publish=false` (ESC ile atlama): sure YEREL listeye yine yazilir ama
+   * ortak listeye GONDERILMEZ. Adini vermek istemeyen oyuncunun kaydi
+   * kaybolmaz, sadece yayimlanmaz. */
+  function finishNameEntry(rawName, publish) {
+    if (nameSending) return;
+    const name = sanitizeName(rawName);
+    const entry = { name: name || "?", ms: runResultMs, balanced: runBalanced, at: Date.now() };
+    board.localAdd(entry);
+    boardHighlight = entry;
+
+    closeNameEntry();
+    speedrun.abort();
+    restoreSaveAfterRun();
+    /* Kaydin `bestMs` alani semada ZATEN vardi ve hic kullanilmiyordu —
+     * yeni alan eklemeden en iyi sure buraya oturur (§8.4 dondurulmus sema). */
+    if (!save.bestMs || runResultMs < save.bestMs) save.bestMs = runResultMs;
+    SaveMod.write(save);
+    endRunSession();
+
+    openBoardScreen();
+    if (!publish || !name) { nameStatus = ""; return; }
+    nameSending = true;
+    nameStatus = i18n.lex("sending");
+    board.submit({ name: entry.name, ms: entry.ms, balanced: entry.balanced, splits: speedrun.splits })
+      .then((res) => {
+        nameSending = false;
+        runRank = res && res.ok ? (res.rank || 0) : 0;
+        nameStatus = res && res.ok ? i18n.lex("sent") : i18n.lex("sendFailed");
+        if (res && res.ok) board.load();
+      });
+  }
+
+  /* ------------------------------------------------------ SKOR TABLOSU ekrani */
+  function openBoardScreen() {
+    if (sceneManager.current !== SCENE.BOARD) sceneManager.goto(SCENE.BOARD);
+    /* Ekran CANLI: yanip sonen satir ve ortak listenin asenkron yuklenmesi
+     * icin dongu kosmali (HARITA ekraniyla ayni gerekce). */
+    loop.resume();
+    board.load();
+  }
+
+  function closeBoardScreen() {
+    sceneManager.back();
+    if (sceneManager.current === SCENE.PAUSE) { loop.pause(); loop.renderOnce(); }
+  }
+
+  function updateBoardScreen() {
+    const c = input.ctrl;
+    tapPending = false;
+    if (c.verbPressed) beginSpeedrun();
+    else if (c.jumpPressed) closeBoardScreen();
   }
 
   /* ======================================================================
@@ -1557,6 +1833,16 @@ export function boot(canvas, opts) {
   let tapX = 0, tapY = 0, tapPending = false;
   function onScreenPointer(bx, by) {
     const s = sceneManager.current;
+    if (s === SCENE.NAME) {
+      /* Dokunmatikte sistem klavyesi ancak KULLANICI JESTIYLE acilir; kosu
+       * kendiliginden bittigi icin acilistaki focus() yetmeyebilir. Ekrana
+       * dokunmak kutuyu yeniden odaklar. */
+      if (nameEl) { try { nameEl.focus(); } catch (e) {} }
+      return true;
+    }
+    /* SKOR TABLOSU dokunmayi TUKETMEZ: boylece dokunmatik A/B bolgeleri
+     * normal calisir (B baslatir, A cikar) — bu ekranin kendi tiklanabilir
+     * satiri yok. */
     if (s !== SCENE.MAP && s !== SCENE.TITLE) return false;
     tapX = bx; tapY = by; tapPending = true;
     return true;
@@ -1579,10 +1865,22 @@ export function boot(canvas, opts) {
       }
     },
     onMap: () => {
+      /* SÜRE MODU'nda BÖLÜM SEÇ YOK: kosunun ortasinda bolum atlamak sureyi
+       * anlamsiz kilardi. Modun tek sarti "herkes bastan baslar". */
+      if (speedrun.active) return;
       const s = sceneManager.current;
       /* §9: HARITA/BÖLÜM SEÇ hem DURAKLAT'tan hem de END ekranindan acilir. */
       if (s === SCENE.PAUSE || s === SCENE.END) openMapScreen();
       else if (s === SCENE.MAP) closeMapScreen();
+    },
+    onBoard: () => {
+      const s = sceneManager.current;
+      if (s === SCENE.NAME) return;                    /* isim yazarken kaybolmasin */
+      if (s === SCENE.BOARD) { closeBoardScreen(); return; }
+      /* Kosarken L yalniz DURAKLAT'ta is gorur ve KOSUYU BIRAKIR — oynanis
+       * sirasinda kazara basilip kosunun bitmesi kabul edilemez. */
+      if (speedrun.active) { if (s === SCENE.PAUSE) abortSpeedrun(); return; }
+      if (s === SCENE.TITLE || s === SCENE.PAUSE || s === SCENE.END) openBoardScreen();
     },
     onPointerTap: onScreenPointer,
     onReset: () => {
@@ -1621,6 +1919,22 @@ export function boot(canvas, opts) {
         return;
       }
 
+      /* SKOR TABLOSU: kendi girdi dali (AKSİYON kosuyu baslatir, ZIPLA cikar). */
+      if (sceneManager.current === SCENE.BOARD) {
+        updateBoardScreen();
+        input.consumeEdges();
+        return;
+      }
+
+      /* ISIM GIRISI: tuslar oyuna DEGIL, odaklanmis DOM <input>'una gider
+       * (input.setTextMode). Burada yapilacak bir sey yok — ekran yalnizca
+       * cizilir; dongu ise imlecin yanip sonmesi ve gonderim durumunun
+       * ekrana yansimasi icin donmeye devam eder. */
+      if (sceneManager.current === SCENE.NAME) {
+        input.consumeEdges();
+        return;
+      }
+
       if (sceneManager.current === SCENE.RESET) {
         if (input.ctrl.verbPressed) { performFullReset(); sceneManager.back(); }
         else if (input.ctrl.jumpPressed) { sceneManager.back(); }
@@ -1629,6 +1943,26 @@ export function boot(canvas, opts) {
       }
 
       sceneManager.update(dt, input.ctrl);
+
+      /* ==================================================================
+       * KRONOMETRE — nerede sayar, nerede saymaz
+       * ==================================================================
+       * Kural tek cumle: oyun kontrolu SENIN HATANDAN OTURU elinden aldiysa
+       * sayar, ANLATI icin aldiysa saymaz.
+       *
+       *   SAYAR    : normal oynanis, patron dovusleri ve GERI AL isinlanmasi.
+       *              Olmek sureye mal olur — istenen davranis aynen bu.
+       *   SAYMAZ   : balon (SÜRE MODU'nda zaten susturuldu ama bu satir
+       *              emniyet kemeri), MERGE'in 6 saniyelik sahnesi ve epilog
+       *              kapanisi. Ucunde de oyuncu hicbir sey yapamaz ve sure
+       *              herkes icin AYNI — saymak siralamayi degistirmez, yalniz
+       *              "oyun durdu ama saat isliyor" hissi birakirdi.
+       *
+       * Bu satira ulasmak zaten "oynanis isliyor" demek: TITLE / HARITA /
+       * SKOR TABLOSU / ISIM / RESET dallari yukarida return etti, DURAKLAT
+       * ise dongunun kendisini durdurdu.
+       * ================================================================== */
+      if (!sceneManager.isDialogueActive() && !mergeStarted && !epClosing) speedrun.tick();
       if (sceneManager.isDialogueActive()) {
         particles.update(dt);
         input.consumeEdges();
@@ -1786,8 +2120,30 @@ export function boot(canvas, opts) {
         return;
       }
 
+      if (sceneManager.current === SCENE.BOARD) {
+        drawBoard(renderer.ctx, font, i18n, {
+          global: board.globalList,
+          local: board.localList(),
+          status: board.status,
+          highlight: boardHighlight
+        });
+        if (nameStatus) {
+          font.drawCentered(renderer.ctx, nameStatus, VIEW_W / 2, VIEW_H - 34, SLOT.LED, 1);
+        }
+        renderer.present();
+        return;
+      }
+
+      if (sceneManager.current === SCENE.NAME) {
+        drawNameEntry(renderer.ctx, font, i18n, {
+          ms: runResultMs, name: nameValue, record: runRecord, sending: nameSending
+        });
+        renderer.present();
+        return;
+      }
+
       if (sceneManager.current === SCENE.END) {
-        drawEnd(renderer.ctx, font, i18n, { rate });
+        drawEnd(renderer.ctx, font, i18n, { rate, runMs: runResultMs || 0, runRank });
         renderer.present();
         return;
       }
@@ -1961,6 +2317,7 @@ export function boot(canvas, opts) {
         commitsTotal: cp.commitsTotal,
         pips: save.pips || 0,
         pipFlash: pipFlash(),
+        runMs: speedrun.active ? speedrun.ms : null,
         debt: save.debt || 0
       });
 
@@ -1984,7 +2341,8 @@ export function boot(canvas, opts) {
         drawPause(renderer.ctx, font, i18n, {
           rate, world: worldFullName(),
           balanced: !!(save.settings && save.settings.balanced),
-          touchMode: touchSettings.mode
+          touchMode: touchSettings.mode,
+          runMs: speedrun.active ? speedrun.ms : null
         });
       }
 
@@ -2005,6 +2363,7 @@ export function boot(canvas, opts) {
      * launcher'in DEVAM butonu / P tusu once onu kapatmali ki "devam" tek
      * basista gercekten oyuna donsun. */
     if (sceneManager.current === SCENE.MAP) { mapConfirm = -1; sceneManager.back(); }
+    else if (sceneManager.current === SCENE.BOARD) sceneManager.back();
     if (sceneManager.current !== SCENE.PAUSE) return;
     sceneManager.back();
     loop.resume();
@@ -2316,6 +2675,10 @@ export function boot(canvas, opts) {
   }
 
   function persistProgress() {
+    /* SÜRE MODU: `save` gecici bir kopya, diske YAZILMAZ. `suppressPersist`
+     * ise kosuyu birakirken calisma zamani sifirlanirken kaydin uzerine
+     * "W0, ilerleme yok" yazilmasini engeller (bkz. abortSpeedrun). */
+    if (speedrun.active || suppressPersist) return;
     save.ratio = rate;
     save.world = currentWorld;
     /* bulunan gercek eksik: checkpointX/Y hicbir zaman kaydedilmiyordu, bu
@@ -2341,7 +2704,13 @@ export function boot(canvas, opts) {
     /* HARITA acikken dongu KOSAR (canli secim/tiklama) ama oynanis durur —
      * launcher acisindan bu hala "duraklatilmis"tir (buton etiketi, resize
      * yolu ve DURAKLATILDI yazisi bu bayragi okur). */
-    isPaused() { return loop.isPaused() || sceneManager.current === SCENE.MAP; },
+    /* HARITA / SKOR TABLOSU / ISIM ekranlarinda dongu KOSAR (canli secim,
+     * asenkron liste, yanip sonen imlec) ama oynanis durur — launcher
+     * acisindan bu hala "duraklatilmis"tir. */
+    isPaused() {
+      const s = sceneManager.current;
+      return loop.isPaused() || s === SCENE.MAP || s === SCENE.BOARD || s === SCENE.NAME;
+    },
     resize(nextScale) {
       renderer.setScale(nextScale);
       if (!loop.isRunning()) loop.renderOnce();
@@ -2370,6 +2739,11 @@ export function boot(canvas, opts) {
     getState() { return { mask: monitorMask(), world: currentWorld, part: worldPart(), total: 4, finished: gameFinished, debt: 0, label: worldLabel() }; },
     destroy() {
       destroyed = true;
+      /* Yarim kalmis bir kosu kaydi BOZMAZ: persistProgress zaten susturulmus
+       * durumda ve gercek kayit diskte oldugu gibi duruyor. Yine de gecici
+       * kopyayi geri alip DOM kutusunu temizle. */
+      closeNameEntry();
+      if (speedrun.active) { speedrun.abort(); restoreSaveAfterRun(); }
       persistProgress();
       telemetry.persist();
       audio.destroy();
@@ -2396,6 +2770,10 @@ export function boot(canvas, opts) {
         arenaWallCount: arenaWalls.count,
         rainActive: rainZone !== null,
         hotChannelX1, hotChannelTimer,
+        runActive: speedrun.active, runFinished: speedrun.finished,
+        runFrames: speedrun.frames, runMs: speedrun.ms, runResultMs, runRank,
+        runSplits: speedrun.splits, boardStatus: board.status,
+        saveShadowed: saveSnapshot !== null,
         mergeAvailable, mergeStarted, mergeDone, epClosing, epFinishHandled,
         gameFinished, perfTier: perf.tier, telemetry: telemetry.summary(),
         revertTimer, checkpointX, checkpointY,

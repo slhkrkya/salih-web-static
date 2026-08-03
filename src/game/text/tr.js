@@ -34,6 +34,25 @@ export default {
     confirmKeys: "AKSİYON onaylar, ZIPLA iptal eder.",
     mapKeys: "Sol/sağ seçer, AKSİYON girer, ZIPLA çıkar.",
     gateLocked: "Kapı kilitli: geri dön, KOKLAYICI'yı yen.",
+    /* SÜRE MODU / SKOR TABLOSU. Hepsi LEXICON'da: prose butcesi (57) bu
+     * ozellikle DEGISMEZ — sayim yalniz menu/hints/scenes/... bloklarini
+     * gezer, lexicon'u degil (bkz. i18n.js countProse). */
+    speedrun: "SÜRE MODU", board: "SKOR TABLOSU",
+    speedrunNote: "Baştan başlar, süre ölümlerde durmaz.",
+    speedrunFair: "Bölümleri bitirmiş olman bir şey değiştirmez.",
+    speedrunKeys: "AKSİYON başlatır, ZIPLA çıkar.",
+    boardGlobal: "HERKES", boardLocal: "BU CİHAZ",
+    boardEmpty: "Henüz kimse bitirmedi.",
+    boardLoading: "Liste alınıyor...",
+    boardOff: "Ortak liste kapalı, yerel liste açık.",
+    boardError: "Ortak listeye ulaşılamadı.",
+    runDone: "KOŞU BİTTİ", newRecord: "YENİ REKOR",
+    enterName: "Adını yaz, listeye girsin.",
+    nameKeys: "ENTER gönderir, ESC atlar.",
+    sending: "GÖNDERİLİYOR...",
+    sent: "Listeye eklendi.",
+    sendFailed: "Gönderilemedi, yerelde saklandı.",
+    runAbort: "Koşuyu bırakmak için L.",
     verb: { rewrite: "ZEMİN YAP", shoot: "ATEŞ ET" },
     pip: { trail: "SAĞLAM ZEMİN" },
     f1seal: "F1 %83,81", ghost: "ESKİ HÂLİN"

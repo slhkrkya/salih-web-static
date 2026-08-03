@@ -31,6 +31,7 @@
  *     onMap()     : M (Faz 6 — PAUSE'dan HARİTA ekrani; yeni DOM butonu YOK,
  *                   §7.6'nin "3 gerçek buton" sözleşmesi bozulmaz)
  *     onReset()   : R (Faz 6 — TITLE'dan RESET onayi, sadece kayit varken anlamli)
+ *     onBoard()   : L (SÜRE MODU + SKOR TABLOSU ekrani)
  *     onTouchCycle() : T (Faz 6 — PAUSE'dan touch.js'in auto/on/off dönüşümü)
  *     onPointerTap(bx, by) -> bool : HER pointerdown'da (FARE DAHIL) ic-tampon
  *                   (480x272) koordinatiyla cagrilir. `true` donerse olay
@@ -51,6 +52,8 @@
  *   input.setTouchOverride(mode) -> "auto"|"on"|"off" (touch.js sahiplenir,
  *                             save.settings.touch ile kalici tutulur)
  *   input.reset()         -> tum tuslar birakilmis kabul edilir (blur/pause)
+ *   input.setTextMode(on) -> isim yazarken oynanis tuslarini TAMAMEN dondurur
+ *                             (tuslar boot.js'in gizli DOM input'una gider)
  *   input.destroy()
  *   input.buttonRects()    -> {jump,verb,ground} {x,y,w,h} BUFFER-SPACE (480x272),
  *                             hit-test ile AYNI kaynaktan — boot.js dokunmatik
@@ -83,6 +86,8 @@ export function createInput(opts) {
    * kaynaga (source) gore karar verir (mevcut davranis); "on"/"off" gercek
    * dokunma/kaynak algisini GORMEZDEN gelir. */
   let touchOverride = "auto";
+  /* SÜRE MODU isim girisi acikken true — bkz. onKeyDown. */
+  let textMode = false;
 
   /* Ham durum: yon tuslari ayri tutulur ki ikisi birden basiliyken
    * "son basilan kazanir" davranisi verilebilsin (Mario grameri). */
@@ -143,6 +148,11 @@ export function createInput(opts) {
   /* ----------------------------------------------------------- klavye */
   function onKeyDown(e) {
     if (dead || e.repeat) return;
+    /* METIN MODU (SÜRE MODU isim girisi): tuslar oyuna DEGIL, boot.js'in
+     * odakladigi gizli DOM input'una gider. Burada erken cikmak iki isi birden
+     * yapar — oynanis tuslari donar (BOŞLUK yazarken karakter ziplamaz) ve
+     * asagidaki preventDefault() calismaz, yani BOŞLUK gercekten bosluk yazar. */
+    if (textMode) return;
     let used = true;
     switch (e.code) {
       case "ArrowLeft": case "KeyA": key.left = true; lastDir = -1; break;
@@ -174,6 +184,9 @@ export function createInput(opts) {
       case "KeyT":
         if (o.onTouchCycle) o.onTouchCycle();
         break;
+      case "KeyL":
+        if (o.onBoard) o.onBoard();
+        break;
       case "F1":
         if (o.onDebug) o.onDebug();
         break;
@@ -195,7 +208,7 @@ export function createInput(opts) {
   }
 
   function onKeyUp(e) {
-    if (dead) return;
+    if (dead || textMode) return;
     switch (e.code) {
       case "ArrowLeft": case "KeyA": key.left = false; if (key.right) lastDir = 1; break;
       case "ArrowRight": case "KeyD": key.right = false; if (key.left) lastDir = -1; break;
@@ -354,11 +367,21 @@ export function createInput(opts) {
     };
   }
 
+  /* Metin moduna GECERKEN tum tuslar birakilmis sayilir: aksi halde isim
+   * ekranina saga basili girip cikan oyuncu, donduginde hala kosuyor olurdu. */
+  function setTextMode(on) {
+    const next = !!on;
+    if (textMode === next) return;
+    textMode = next;
+    reset();
+  }
+
   return {
     ctrl,
     get source() { return source; },
     get touchActive() { return effectiveTouch(); },
-    consumeEdges, reset, destroy, buttonRects, setTouchOverride,
+    get textMode() { return textMode; },
+    consumeEdges, reset, destroy, buttonRects, setTouchOverride, setTextMode,
     touchLayout: { size: TOUCH_BTN, pad: TOUCH_PAD }
   };
 }

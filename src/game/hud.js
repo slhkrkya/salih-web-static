@@ -25,11 +25,13 @@
  *     commits, commitsTotal,     // n/24
  *     pips,             // 12 bit bitmask, save.PIP_BIT sirasi
  *     pipFlash,         // null | {index, frames, name} — yeni acilan pip vurgusu
+ *     runMs,            // null | ms — SÜRE MODU kronometresi (yalniz kosu varken)
  *     debt              // 0-3, v0'da hep 0
  *   });
  * ========================================================================== */
 
 import { VIEW_W } from "./scale.js";
+import { formatTime } from "./speedrun.js";
 
 const SLOT_INK = 0, SLOT_BG = 1, SLOT_SURFACE = 2, SLOT_SURFACE_SOFT = 3,
       SLOT_INK_SOFT = 4, SLOT_ACCENT = 5, SLOT_SECONDARY = 6, SLOT_LED = 7,
@@ -209,6 +211,20 @@ export function createHud(font, i18n) {
     font.drawCentered(ctx, label, VIEW_W / 2, y + w + 2, flashing ? SLOT_LED : SLOT_INK_SOFT, 1);
   }
 
+  /* SÜRE MODU kronometresi. Pip sirasinin HEMEN ALTINDA, ortada ve 2x boyutta:
+   * bu moddaki oyuncunun en cok baktigi sayi budur, HUD'un kenarina sikismasi
+   * anlamsiz olurdu. Yalnizca kosu aktifken cizilir — normal oyunda HUD
+   * degismez. */
+  function drawRunTimer(ctx, ms) {
+    if (ms === null || ms === undefined) return;
+    const label = formatTime(ms);
+    const w = font ? font.measure(label, 2) : 0;
+    const x = Math.round((VIEW_W - w) / 2), y = 30;
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(x - 5, y - 3, w + 10, 22);
+    if (font) font.draw(ctx, label, x, y, SLOT_ACCENT, 2);
+  }
+
   function drawDebtBadge(ctx, debt) {
     if (debt <= 0) return;
     const x = VIEW_W - 16, y = 28;
@@ -222,6 +238,7 @@ export function createHud(font, i18n) {
     drawVerbSlot(ctx, state);
     drawCommitGraph(ctx, state.commits, state.commitsTotal);
     drawPipRow(ctx, state.pips, state.pipFlash);
+    drawRunTimer(ctx, state.runMs);
     drawDebtBadge(ctx, state.debt || 0);
   }
 

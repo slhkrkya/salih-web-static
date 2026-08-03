@@ -38,8 +38,10 @@
  * ========================================================================== */
 
 import { VIEW_W, VIEW_H } from "./scale.js";
+import { formatTime } from "./speedrun.js";
 
 const SLOT_INK = 0, SLOT_LIGHT = 11, SLOT_ACCENT = 5, SLOT_INK_SOFT = 4, SLOT_LED = 7;
+const SLOT_HAZARD = 14;
 
 /* ---------------------------------------------------------------- geometri */
 export const STAGE_COUNT = 4;
@@ -101,31 +103,173 @@ function panel(ctx, x, y, w, h, alpha) {
   ctx.restore();
 }
 
+/* ==========================================================================
+ * BASLIK EKRANI — satirlar AKAN bir imlecle dizilir, SABIT y ile degil
+ * ==========================================================================
+ * Ekran goruntusuyle raporlanan cakisma (SÜRE MODU satiri, tus efsanesinin
+ * ucuncu satirinin USTUNE biniyordu) tam olarak sabit koordinat yuzundendi:
+ * satir y=222'ye elle konmustu, oysa drawControls listeden ONCE bir de
+ * "TUŞLAR" basligi cizip 12 px asagi kayiyor ve ucuncu satiri 220'ye
+ * dusuruyor. Iki sayi birbirinden habersiz oldugu icin cakisma kacinilmazdi.
+ *
+ * Cozum, parkur tabelalarinda uygulanan ilkeyle ayni: hicbir satir kendi
+ * yerini BILMEZ, bir onceki satirin bittigi yerden devam eder. Kosullu
+ * satirlar (kayit notu, azaltilmis-hareket notu) da imleci kendileri
+ * ilerlettigi icin, hangi bilesim gorunurse gorunsun aralik korunur.
+ * ========================================================================== */
 export function drawTitle(ctx, font, i18n, opts) {
   const o = opts || {};
   ctx.fillStyle = "#0b0f1f";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
   const cx = VIEW_W / 2;
-  font.drawCentered(ctx, "YOKSAY / OVERRIDE", cx, 60, SLOT_ACCENT, 2);
-  font.drawCentered(ctx, i18n.t("menu.m1"), cx, 90, SLOT_LIGHT, 1);
-  font.drawCentered(ctx, i18n.t("menu.m2"), cx, 106, SLOT_LIGHT, 1);
+  font.drawCentered(ctx, "YOKSAY / OVERRIDE", cx, 46, SLOT_ACCENT, 2);
 
-  if (o.hasSave) font.drawCentered(ctx, i18n.t("menu.m3"), cx, 140, SLOT_INK_SOFT, 1);
-  font.drawCentered(ctx, i18n.t("menu.m4"), cx, 156, SLOT_INK_SOFT, 1);
+  let ty = 78;
+  font.drawCentered(ctx, i18n.t("menu.m1"), cx, ty, SLOT_LIGHT, 1); ty += 14;
+  font.drawCentered(ctx, i18n.t("menu.m2"), cx, ty, SLOT_LIGHT, 1); ty += 20;
+
+  if (o.hasSave) { font.drawCentered(ctx, i18n.t("menu.m3"), cx, ty, SLOT_INK_SOFT, 1); ty += 13; }
+  font.drawCentered(ctx, i18n.t("menu.m4"), cx, ty, SLOT_INK_SOFT, 1); ty += 13;
 
   /* A2 (§7.6/§15.14): azaltilmis-hareket notu, YALNIZ prefers-reduced-motion
    * eslesirse, TITLE'da SABIT (yanip sonmeyen) tek satir. */
-  if (o.reduceMotion) font.drawCentered(ctx, i18n.t("a11y.a2"), cx, 172, SLOT_INK_SOFT, 1);
+  if (o.reduceMotion) { font.drawCentered(ctx, i18n.t("a11y.a2"), cx, ty, SLOT_INK_SOFT, 1); ty += 13; }
+
+  /* SÜRE MODU girisi. Baslikta TEK satir: oyunun normal akisini bozmaz ama
+   * modun var oldugunu bilmeyen kimse kalmaz. */
+  ty += 6;
+  font.drawCentered(ctx, i18n.lex("speedrun") + " + " + i18n.lex("board") + " (L)", cx, ty, SLOT_LED, 1);
+  ty += 18;
 
   /* bulunan gercek eksik: hicbir ekran hangi tusun ne yaptigini SOYLEMIYORDU
    * (kitabin TITLE tablosu "Yön tuşlarıyla gezinir, A onaylar" der ama kod
    * yalniz yanip sonen tek satiri ciziyordu). Ilk uc satir — yuru / zipla /
    * fiil — baslikta sabit durur; TAMAMI DURAKLAT ekranindadir. */
-  drawControls(ctx, font, i18n, cx, 186, 3, true, SLOT_LED);
+  drawControls(ctx, font, i18n, cx, ty, 3, true, SLOT_ACCENT);
 
   const blink = (Math.floor(Date.now() / 500) % 2 === 0);
-  if (blink) font.drawCentered(ctx, i18n.lex("jump") + " / " + i18n.lex("approve"), cx, VIEW_H - 26, SLOT_LIGHT, 1);
+  if (blink) font.drawCentered(ctx, i18n.lex("jump") + " / " + i18n.lex("approve"), cx, VIEW_H - 20, SLOT_LIGHT, 1);
+}
+
+/* ==========================================================================
+ * SKOR TABLOSU + SÜRE MODU girisi
+ * ==========================================================================
+ * Tek ekran iki isi birden yapar: listeyi gosterir VE modu baslatir. Ayri bir
+ * "mod secimi" ekrani, uc satirlik bir menuyu iki ekrana bolmek olurdu.
+ *
+ * IKI SUTUN, IKI KAYNAK: solda ORTAK liste (sunucu), sagda BU CIHAZ (yerel).
+ * Yerel sutun her kosulda dolar — sunucu kapali olsa bile ekran bos kalmaz ve
+ * oyuncu kendi rekorunu gorur.
+ * ========================================================================== */
+const BOARD_ROWS = 10;
+const BOARD_ROW_H = 11;
+const BOARD_TOP = 62;
+
+function boardColumn(ctx, font, i18n, x, w, header, list, highlight) {
+  font.draw(ctx, header, x, BOARD_TOP - 14, SLOT_LED, 1);
+  ctx.save();
+  ctx.strokeStyle = "#283163";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, BOARD_TOP - 3.5);
+  ctx.lineTo(x + w, BOARD_TOP - 3.5);
+  ctx.stroke();
+  ctx.restore();
+
+  if (!list || list.length === 0) {
+    font.draw(ctx, i18n.lex("boardEmpty"), x, BOARD_TOP + 4, SLOT_INK_SOFT, 1);
+    return;
+  }
+  for (let i = 0; i < list.length && i < BOARD_ROWS; i++) {
+    const e = list[i];
+    const y = BOARD_TOP + i * BOARD_ROW_H;
+    const mine = highlight && e.ms === highlight.ms && e.name === highlight.name;
+    const slot = mine ? SLOT_ACCENT : (i === 0 ? SLOT_LIGHT : SLOT_INK_SOFT);
+    font.draw(ctx, (i + 1) + ".", x, y, slot, 1);
+    font.draw(ctx, e.name, x + 22, y, slot, 1);
+    const t = formatTime(e.ms);
+    font.draw(ctx, t, x + w - font.measure(t, 1), y, slot, 1);
+    /* KOLAY MOD ile kosulmus sureler isaretlenir — ayni listede dururlar ama
+     * hangisinin hangi kosulda oldugu gorunur (gizlemek yaniltici olurdu). */
+    if (e.balanced) font.draw(ctx, "*", x + w - font.measure(t, 1) - 8, y, SLOT_HAZARD, 1);
+  }
+}
+
+export function drawBoard(ctx, font, i18n, opts) {
+  const o = opts || {};
+  ctx.fillStyle = "#0b0f1f";
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  const cx = VIEW_W / 2;
+
+  font.drawCentered(ctx, i18n.lex("board"), cx, 6, SLOT_ACCENT, 1);
+  font.drawCentered(ctx, i18n.lex("speedrunNote"), cx, 22, SLOT_LIGHT, 1);
+  font.drawCentered(ctx, i18n.lex("speedrunFair"), cx, 34, SLOT_INK_SOFT, 1);
+
+  const colW = 208, gap = 22;
+  const lx = Math.round(cx - gap / 2 - colW), rx = Math.round(cx + gap / 2);
+  boardColumn(ctx, font, i18n, lx, colW, i18n.lex("boardGlobal"), o.global, o.highlight);
+  boardColumn(ctx, font, i18n, rx, colW, i18n.lex("boardLocal"), o.local, o.highlight);
+
+  const statusY = BOARD_TOP + BOARD_ROWS * BOARD_ROW_H + 6;
+  const st = o.status;
+  if (st === "loading") font.drawCentered(ctx, i18n.lex("boardLoading"), cx, statusY, SLOT_INK_SOFT, 1);
+  else if (st === "off") font.drawCentered(ctx, i18n.lex("boardOff"), cx, statusY, SLOT_INK_SOFT, 1);
+  else if (st === "error") font.drawCentered(ctx, i18n.lex("boardError"), cx, statusY, SLOT_HAZARD, 1);
+
+  const blink = (Math.floor(Date.now() / 500) % 2 === 0);
+  if (blink) font.drawCentered(ctx, i18n.lex("speedrunKeys"), cx, VIEW_H - 20, SLOT_LED, 1);
+}
+
+/* ==========================================================================
+ * ISIM GIRISI — kosu bittikten sonra
+ * ==========================================================================
+ * Metin GERCEK bir DOM <input>'undan gelir (boot.js gorunmez bir tane kurar ve
+ * odaklar): masaustunde normal yazim, mobilde de sistem klavyesi acilir. Bu
+ * ekran yalnizca o degeri CIZER — canvas'a kendi klavyesini uydurmak hem
+ * dokunmatikte calismazdi hem de Turkce karakterleri kaybederdi.
+ * ========================================================================== */
+export function drawNameEntry(ctx, font, i18n, opts) {
+  const o = opts || {};
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = "#0b0f1f";
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.restore();
+
+  const w = 320, h = 150;
+  const x = Math.round((VIEW_W - w) / 2), y = Math.round((VIEW_H - h) / 2);
+  panel(ctx, x, y, w, h, 0.95);
+  const cx = VIEW_W / 2;
+  let ty = y + 10;
+
+  font.drawCentered(ctx, i18n.lex("runDone"), cx, ty, SLOT_ACCENT, 1); ty += 16;
+  font.drawCentered(ctx, formatTime(o.ms || 0), cx, ty, SLOT_LIGHT, 2); ty += 22;
+  if (o.record) { font.drawCentered(ctx, i18n.lex("newRecord"), cx, ty, SLOT_LED, 1); ty += 14; }
+  else { ty += 4; }
+
+  font.drawCentered(ctx, i18n.lex("enterName"), cx, ty, SLOT_INK_SOFT, 1); ty += 14;
+
+  /* Yazi kutusu */
+  const bw = 200, bh = 16, bx = Math.round(cx - bw / 2);
+  ctx.save();
+  ctx.fillStyle = "#171f3d";
+  ctx.fillRect(bx, ty, bw, bh);
+  ctx.strokeStyle = "#58c4ff";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 0.5, ty + 0.5, bw - 1, bh - 1);
+  ctx.restore();
+  const name = o.name || "";
+  const tw = font.measure(name, 1);
+  font.draw(ctx, name, bx + 6, ty + 3, SLOT_LIGHT, 1);
+  if (Math.floor(Date.now() / 400) % 2 === 0) {
+    ctx.fillStyle = "#fdf3e9";
+    ctx.fillRect(bx + 6 + tw + (name ? 1 : 0), ty + 3, 5, 9);
+  }
+  ty += bh + 8;
+
+  const send = o.sending ? i18n.lex("sending") : i18n.lex("nameKeys");
+  font.drawCentered(ctx, send, cx, ty, o.sending ? SLOT_LED : SLOT_INK_SOFT, 1);
 }
 
 export function drawPause(ctx, font, i18n, opts) {
@@ -149,7 +293,14 @@ export function drawPause(ctx, font, i18n, opts) {
   if (o.touchMode) {
     font.drawCentered(ctx, i18n.lex("touch") + ": " + i18n.lex(o.touchMode) + " (T)", cx, ty, SLOT_INK_SOFT, 1); ty += 11;
   }
-  font.drawCentered(ctx, i18n.lex("map") + " + " + i18n.lex("pickStage") + " (M)", cx, ty, SLOT_LED, 1); ty += 14;
+  /* SÜRE MODU kosarken BÖLÜM SEÇ kapali — bir kosunun ortasinda bolum
+   * atlamak sureyi anlamsiz kilardi. Satirin yerini kronometre alir. */
+  if (o.runMs !== null && o.runMs !== undefined) {
+    font.drawCentered(ctx, i18n.lex("speedrun") + "  " + formatTime(o.runMs), cx, ty, SLOT_ACCENT, 1); ty += 11;
+    font.drawCentered(ctx, i18n.lex("runAbort"), cx, ty, SLOT_INK_SOFT, 1); ty += 14;
+  } else {
+    font.drawCentered(ctx, i18n.lex("map") + " + " + i18n.lex("pickStage") + " (M)", cx, ty, SLOT_LED, 1); ty += 14;
+  }
 
   drawControls(ctx, font, i18n, cx, ty, null, true, SLOT_ACCENT);
 }
@@ -250,18 +401,34 @@ export function drawEnd(ctx, font, i18n, opts) {
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   const cx = VIEW_W / 2;
 
-  font.drawCentered(ctx, i18n.lex("merge").toUpperCase(), cx, 70, SLOT_ACCENT, 2);
-  font.drawCentered(ctx, i18n.data.final[3], cx, 106, SLOT_LIGHT, 1);
-  font.drawCentered(ctx, i18n.t("menu.m12"), cx, 126, SLOT_INK_SOFT, 1);
+  font.drawCentered(ctx, i18n.lex("merge").toUpperCase(), cx, 60, SLOT_ACCENT, 2);
+  /* bulunan gercek hata: `final` dizisi KRONOLOJIK hale getirilirken (YOKSAY ->
+   * AYNA -> MERGE teklifi -> MERGE ortasi -> kapanis) bitis satiri 3'ten 4'e
+   * kaydi; bu ekran indeksi guncellenmedigi icin oyunu bitiren oyuncuya
+   * "Son düzlük. Buradan sonrası sadece koşu." yaziyordu. */
+  font.drawCentered(ctx, i18n.data.final[4], cx, 96, SLOT_LIGHT, 1);
   const pct = (o.rate || 0) / 100;
-  font.drawCentered(ctx, i18n.lex("rate") + " " + pct.toFixed(2) + "%", cx, 150, SLOT_LIGHT, 1);
+  font.drawCentered(ctx, i18n.lex("rate") + " " + pct.toFixed(2) + "%", cx, 114, SLOT_LIGHT, 1);
+
+  /* SÜRE MODU ile bitirildiyse asil sonuc SUREDIR — orani degil onu buyut. */
+  if (o.runMs) {
+    font.drawCentered(ctx, i18n.lex("speedrun"), cx, 134, SLOT_LED, 1);
+    font.drawCentered(ctx, formatTime(o.runMs), cx, 148, SLOT_ACCENT, 2);
+    if (o.runRank > 0) {
+      font.drawCentered(ctx, i18n.lex("boardGlobal") + ": " + o.runRank + ".", cx, 172, SLOT_LIGHT, 1);
+    }
+    font.drawCentered(ctx, i18n.lex("board") + " (L)", cx, 190, SLOT_LED, 1);
+  } else {
+    font.drawCentered(ctx, i18n.t("menu.m12"), cx, 134, SLOT_INK_SOFT, 1);
+    font.drawCentered(ctx, i18n.lex("speedrun") + " (L)", cx, 154, SLOT_LED, 1);
+  }
 
   /* bulunan gercek eksik: burada yanip sonen "BAŞTAN" satirinin ARDINDA
    * hicbir girdi dali yoktu — END ekrani sifir cikisli bir cikmazdi. Kitabin
    * §9 END tablosu "Bölüm seç"i zaten burada istiyor; satir artik GERCEKTEN
    * calisan tek yolu gosterir (M -> BÖLÜM SEÇ, oradan W0 dahil her bolum). */
   const blink = (Math.floor(Date.now() / 500) % 2 === 0);
-  if (blink) font.drawCentered(ctx, i18n.lex("pickStage") + " (M)", cx, VIEW_H - 30, SLOT_LED, 1);
+  if (blink) font.drawCentered(ctx, i18n.lex("pickStage") + " (M)", cx, VIEW_H - 24, SLOT_LED, 1);
 }
 
 export function drawReset(ctx, font, i18n) {
@@ -278,5 +445,6 @@ export function drawReset(ctx, font, i18n) {
 
 export default {
   drawTitle, drawPause, drawMap, drawStageConfirm, drawEnd, drawReset,
+  drawBoard, drawNameEntry,
   drawControls, stageRowRect, confirmRects, hitRect, STAGE_COUNT
 };

@@ -22,6 +22,7 @@
  *   sm.back()                -> yigindan bir onceki sahneye doner
  *
  *   sm.playDialogue(beats, onDone)  -> beats: [{who,line}], sirayla balon gosterir
+ *   sm.setMuted(bool)               -> SÜRE MODU: balonlari TAMAMEN kapatir
  *   sm.isDialogueActive()
  *   sm.clearDialogue()              -> yarim balonu DUSURUR (onDone cagrilmaz)
  *   sm.update(dt, ctrl)             -> hold-skip'i ve sonraki balona gecisi isler
@@ -31,7 +32,10 @@
 import { VIEW_W, VIEW_H } from "./scale.js";
 import { SLOT } from "./render.js";
 
-export const SCENE = Object.freeze({ PLAY: 0, TITLE: 1, PAUSE: 2, MAP: 3, END: 4, RESET: 5 });
+/* BOARD = SKOR TABLOSU + SÜRE MODU girisi, NAME = kosu sonrasi isim girisi.
+ * Ikisi de yigina BINER (goto/back), yani nereden girildiyse oraya doner —
+ * BOARD hem TITLE'dan hem DURAKLAT'tan hem de END'den acilabiliyor. */
+export const SCENE = Object.freeze({ PLAY: 0, TITLE: 1, PAUSE: 2, MAP: 3, END: 4, RESET: 5, BOARD: 6, NAME: 7 });
 
 const SKIP_HOLD_FRAMES = 24;          /* 0,4 s @ 60fps */
 const AUTO_ADVANCE_FRAMES = 156;      /* ~2,6 s/balon (§6.3 SC-01 3 balon / 8s) */
@@ -49,12 +53,35 @@ export function createSceneManager() {
   let dialogueTimer = 0;
   let dialogueOnDone = null;
   let holdFrames = 0;
+  /* SÜRE MODU: balonlar tamamen SUSAR (bkz. setMuted). */
+  let muted = false;
 
   function goto(scene) { stack.push(scene); }
   function back() { if (stack.length > 1) stack.pop(); }
   function replace(scene) { stack[stack.length - 1] = scene; }
 
+  /* ==========================================================================
+   * SUSTURMA — SÜRE MODU icin
+   * ==========================================================================
+   * Balon acikken boot.js fizigi TAMAMEN dondurur: oyuncu hicbir sey yapamaz.
+   * Sureli bir kosuda bu iki sebeple istenmiyor — hem ipuclari o modda zaten
+   * gereksiz (oyunu bitirmis biri kosuyor), hem de "oyun durmusken kronometre
+   * isliyor" adaletsiz gorunuyor.
+   *
+   * Anahtar BURADA, cagri yerlerinde DEGIL: boot.js'te on iki ayri
+   * playDialogue cagrisi ve dort cutscene tetigi var; her birine tek tek
+   * kosul eklemek, yeni bir cagri eklendiginde unutulmaya acik olurdu.
+   * cutscene.js de bu modulu cagirdigi icin o yol da bedavaya kapanir.
+   *
+   * `onDone` susturulmus cagrida DA calisir: bazi cagiranlar diyalogun
+   * bitisini bir devam sinyali olarak kullanabilir, sessizlik onu yutmamali. */
+  function setMuted(v) {
+    muted = !!v;
+    if (muted) clearDialogue();
+  }
+
   function playDialogue(beats, onDone) {
+    if (muted) { if (onDone) onDone(); return; }
     dialogueBeats = beats;
     dialogueIndex = 0;
     dialogueTimer = 0;
@@ -157,7 +184,8 @@ export function createSceneManager() {
 
   return {
     get current() { return stack[stack.length - 1]; },
-    goto, back, replace,
+    get muted() { return muted; },
+    goto, back, replace, setMuted,
     playDialogue, isDialogueActive, clearDialogue, update, draw
   };
 }
