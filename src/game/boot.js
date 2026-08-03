@@ -7,11 +7,19 @@
  *
  * AKIS: TITLE -> SC-00 -> W0 -> W1 girisi -> pip'ler -> SC-01 (C1) ->
  * REGRESYON kovalamasi -> G1 prova odasi -> KOKLAYICI (2 faz) -> W6 girisi
- * (SC-06) -> A6 (4 zipla + 2 fiil + 2 SICAK KANAL) -> YOKSAY (1 faz,
- * dönüşümlü fiil) -> F1 replik -> R1 -> MERGE teklifi (F2) -> MERGE (6 s,
+ * (SC-06) -> A6 (4 zipla + 2 fiil + 2 SICAK KANAL) -> YOKSAY (2 faz, uc
+ * saldiri kalibi) -> X1 SON SINAV (buz+sahte zemin, cift DUGUM, KIVILCIM
+ * YAGMURU seridi, sicak serit, avci+Q koprüsü) -> AYNA (3 faz, bes saldiri
+ * kalibi, iki yani kapali arena) -> R1 -> MERGE teklifi -> MERGE (6 s,
  * banttan zemin, oran deterministik 48) -> EP girisi -> A7 (momentum
  * rampasi) -> C7 (kurtarilan sakinler) -> BITIS CIZGISI -> epilog kapanisi
- * (5 s, F3 sonra F4) -> `finished=true`, `assertFinish` yesil -> END ekrani.
+ * (5 s) -> `finished=true`, `assertFinish` yesil -> END ekrani.
+ *
+ * SON SINAV (X1) EKLENTISI: kitapta YOKSAY'dan sonra dogrudan R1'in duz
+ * kosusu ve MERGE geliyordu — oyunun en zor ani ORTASINDA kaliyor, sonu bir
+ * yurutme bandi oluyordu. X1 o bosluga oturur ve YENI mekanik ogretmez,
+ * ogretilmis olan her seyi ust uste bindirir; ardindaki AYNA ise oyuncunun
+ * KENDI iki fiilini (ates + zemin) ona karsi kullanan tek patrondur.
  *
  * ============================================================================
  * ARAYUZ SOZLESMESI — bu imza DEGISMEDI (Faz 0'dan miras).
@@ -79,6 +87,7 @@ import {
 import { createSceneManager, SCENE } from "./scenes.js";
 import { createTelemetry } from "./telemetry.js";
 import { createFakeTiles } from "./faketiles.js";
+import { createArenaWalls } from "./arenawalls.js";
 
 import { buildWorld0 } from "./worlds/w0.js";
 import { buildWorld1 } from "./worlds/w1.js";
@@ -86,7 +95,7 @@ import { buildWorld6 } from "./worlds/w6.js";
 import { buildWorldEP } from "./worlds/ep.js";
 import { createGhost } from "./ghost.js";
 import { createAudio } from "./audio.js";
-import { createSniffer, createOverride } from "./bosses.js";
+import { createSniffer, createOverride, createMirror } from "./bosses.js";
 import { createCutsceneDirector, SC_IDS } from "./cutscene.js";
 import { createTouchSettings } from "./touch.js";
 import { createPerfGovernor } from "./perf.js";
@@ -116,6 +125,13 @@ function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
  * govde ona DEGDIGI an REVERT tetiklenir (bkz. respawnIfFallen). */
 const HAZARD_FLOOR_Y = (CHUNK_H - SAFETY_ROWS) * TILE;
 
+/* Commit tasinda govde zeminin bu kadar USTUNDE dirilir — dunya dosyalarinin
+ * `spawnY = curFloorY * TILE - 20` sozlesmesiyle AYNI ofset. Modul duzeyinde
+ * durur cunku boot()'un HEM devam dali (en ust) HEM de commitAtBeacon'i (cok
+ * asagida) okur; boot icinde tanimlansaydi devam dali onu kendi bildiriminden
+ * ONCE okuyup TDZ hatasi verirdi. */
+const COMMIT_BODY_UP = 20;
+
 /* Isinlanma dizisi (bulunan gercek eksik: eski REVERT aninda/"tak diye"
  * teleport oluyordu, gecis yoktu). ONCE eski konumda 16 kare solar, TAM
  * ORTADA checkpoint'e tasinir + ikinci bir parcacik patlamasiyla "belirir",
@@ -140,8 +156,18 @@ function groundYAtTile(map, tx) {
 /* Bayrak konumlari: segmentBoundaries()'in AYNI x esiklerinden turetilir —
  * checkpointX'i ilerleten mantikla ayni veri, gorsel hicbir zaman
  * senkron-disi kalamaz (bkz. plan Faz 2). */
+/* Zemini OLMAYAN bir commit noktasi (bosluga denk gelen turetilmis segment
+ * siniri gibi) ise yaramaz degil, TEHLIKELIDIR: oraya dogan oyuncu duser ve
+ * ayni yere tekrar dogar. Boyle noktalar burada elenir — hem cizilmez hem de
+ * checkpointX'i ilerletmez, cunku iki is de AYNI listeden beslenir. */
 function computeBeacons(xs, map) {
-  return xs.map((x) => ({ x, y: groundYAtTile(map, Math.floor(x / TILE)) }));
+  const out = [];
+  for (const x of xs) {
+    const y = groundYAtTile(map, Math.floor(x / TILE));
+    if (y >= HAZARD_FLOOR_Y - TILE) continue;
+    out.push({ x, y });
+  }
+  return out;
 }
 
 function segmentBoundaries(worldData) {
@@ -184,6 +210,10 @@ export function boot(canvas, opts) {
   const particles = createParticles(192);
   const ghost = createGhost();
   const fakeTiles = createFakeTiles();
+  /* AYNA'nin haritaya yazdigi gecici duvarlar. fakeTiles ile AYNI sozlesme
+   * (setMap/update/draw/reset) — dunya nesneleri tekrar kullanildigi icin
+   * "haritada kalici iz birakma" disiplini tek bir yerde yasar. */
+  const arenaWalls = createArenaWalls();
   const audio = createAudio();
   audio.setEnabled(audioEnabled);
 
@@ -217,13 +247,6 @@ export function boot(canvas, opts) {
   const w6MidA6X = w6.bossTriggerX * 0.5;
   const epBounds = segmentBoundaries(ep);
   const w1Beacons = computeBeacons(w1Bounds.map((b) => b.startX), w1.map);
-  /* W6'nin commit noktalari = segment sinirlari + A6 ici ara taslar (bkz.
-   * w6.js commitStones). Bayraklar ve checkpointX ilerlemesi AYNI listeden
-   * beslenir; gorsel ile mantik hicbir zaman ayrisamaz. */
-  const w6Commits = w6Bounds.map((b) => b.startX)
-    .concat(w6.commitStones || [])
-    .sort((a, b) => a - b);
-  const w6Beacons = computeBeacons(w6Commits, w6.map);
 
   /* ==========================================================================
    * ETIKET SATIR DUZENI — cakisan parkur tabelalari (ekran goruntusuyle
@@ -305,6 +328,50 @@ export function boot(canvas, opts) {
   const w6Arena = { x0: w6.bossTriggerX + 24, x1: w6.bossTriggerX + W6_ARENA_DX, groundY: w6BossGroundY };
   const w6ArenaHoldX = w6.bossTriggerX + W6_ARENA_DX;
 
+  /* ==========================================================================
+   * SON SINAV ARENASI (X1 / AYNA) — IKI YANI DA KAPALI
+   * ==========================================================================
+   * YOKSAY'in arenasi yalniz SAG kenardan tutuluyor. Bu, KOKLAYICI'da olculmus
+   * gercek denge hatasinin ayni sinifini acik birakir: oyuncu geri cekilip
+   * patronun erisemedigi bir mesafeden bedava ates edebilir (mermi menzili
+   * 368 px). Son dovuste kapi ARKANDA da kapanir — arena 420 px, yani mermi
+   * menziliyle ayni mertebede: "guvenli kose" diye bir yer yok.
+   *
+   * Patron arenanin sag yarisinda dogar; solda oyuncunun manevra yapacagi
+   * 280 px kalir (kosu kalibinin anlamli olmasi icin gereken asgari mesafe,
+   * bkz. bosses.js MR_DASH_MIN_TRAVEL). */
+  const X1_BOSS_DX = 300;
+  const X1_ARENA_L_DX = 20;
+  const X1_ARENA_R_DX = 440;
+  const x1BossX = w6.x1BossTriggerX + X1_BOSS_DX;
+  const x1BossGroundY = groundYAtTile(w6.map, Math.floor(x1BossX / TILE));
+  const x1BossY = x1BossGroundY - 16;   /* bosses.js MR_BODY_UP ile ayni: govde zemine oturur */
+  const x1ArenaX0 = w6.x1BossTriggerX + X1_ARENA_L_DX;
+  const x1ArenaX1 = w6.x1BossTriggerX + X1_ARENA_R_DX;
+  const x1Arena = { x0: x1ArenaX0, x1: x1ArenaX1, groundY: x1BossGroundY, walls: arenaWalls };
+
+  /* ==========================================================================
+   * W6 COMMIT NOKTALARI = segment sinirlari + w6.js'in ACIK taslari
+   * ==========================================================================
+   * ARENA BANDINDAKILER AYIKLANIR (bulunan gercek hata): segmentBoundaries()
+   * sinirlari x=0'dan kumulatif sayar, oysa segmentler spawn duzluginin (6
+   * tile) ARDINDAN basliyor — yani turetilmis her sinir 96 px kayiktir. R1'in
+   * kayik siniri tam da AYNA arenasinin ICINE dusuyordu: dovus sirasinda saga
+   * ilerleyen oyuncu farkinda olmadan kayit noktasini arenaya tasiyor ve
+   * olunce dovusun ORTASINDA diriliyordu. Kayit noktasi bir dovusun icinde
+   * OLAMAZ; band icine dusen sinirlar burada tek yerde elenir ve w6.js
+   * arenadan hemen sonra ACIK bir tas koyar. */
+  function insideArena(x) {
+    if (x >= w6.bossTriggerX - TILE && x <= w6ArenaHoldX + TILE) return true;
+    if (x >= x1ArenaX0 - TILE && x <= x1ArenaX1 + TILE) return true;
+    return false;
+  }
+  const w6Commits = w6Bounds.map((b) => b.startX)
+    .concat(w6.commitStones || [])
+    .filter((x) => !insideArena(x))
+    .sort((a, b) => a - b);
+  const w6Beacons = computeBeacons(w6Commits, w6.map);
+
   const cfgW0 = makeConfig(1.00, 0.00, false);
   const cfgW1 = makeConfig(1.15, 0.30, false);
   const cfgW6 = makeConfig(1.35, 0.55, false);
@@ -342,6 +409,13 @@ export function boot(canvas, opts) {
   let boss = null;
   let overrideBoss = null;
   let overrideDefeatedHandled = false;
+  /* SON SINAV (X1) patronu AYNA. Arena kapisi "silahlanarak" kapanir:
+   * `mirrorLeftArmed` ancak oyuncu gercekten arenanin ICINE girdikten sonra
+   * true olur — aksi halde patron dogar dogmaz oyuncu birkac piksel ileri
+   * itilirdi (tetik cizgisi arena kenarinin biraz gerisinde). */
+  let mirrorBoss = null;
+  let mirrorDefeatedHandled = false;
+  let mirrorLeftArmed = false;
   let bossPhase2Committed = false;
   let gameFinished = false;
   let ghostRenderX = null, ghostRenderY = null;
@@ -361,6 +435,9 @@ export function boot(canvas, opts) {
   let ghostOriginX = 0;
   let ghostRestartPending = false;
   let hotChannelX1 = null, hotChannelTimer = 0;
+  /* KIVILCIM YAĞMURU seridi (X1). SICAK KANAL ile ayni desen: tile bayragi
+   * degil, x-araligi + kare sayaci. */
+  let rainZone = null, rainTimer = 0, rainWave = 0;
   let mergeAvailable = false, mergeStarted = false, mergeDone = false;
   let mergeTimer = 0, mergeStartRate = 0;
   let epFinishHandled = false, epClosing = false, epClosingTimer = 0, epF4Shown = false;
@@ -409,8 +486,15 @@ export function boot(canvas, opts) {
     currentWorld = save.world;
     const wd = worldData();
     spawnWorldEnemies(wd);
-    body.x = save.checkpointX || wd.spawnX;
-    body.y = save.checkpointY || wd.spawnY;
+    /* BOZUK KAYIT ONARIMI: yukarida anlatilan hata, cukurun dibine yazilmis
+     * bir checkpointY'yi KAYDA da islemis olabilir (persistProgress her
+     * kapanista yazar). Boyle bir kayitla devam eden oyuncu, kod duzeltilmis
+     * olsa bile dogar dogmaz olmeye devam ederdi. Olumcul yukseklikteki bir
+     * kayit noktasi sessizce dunyanin dogus noktasina cekilir. */
+    const savedY = save.checkpointY || wd.spawnY;
+    const poisoned = savedY + COMMIT_BODY_UP >= HAZARD_FLOOR_Y;
+    body.x = poisoned ? wd.spawnX : (save.checkpointX || wd.spawnX);
+    body.y = poisoned ? wd.spawnY : savedY;
     cam.setBounds(wd.map.pxW, wd.map.pxH);
     cam.snapTo(body.x, body.y);
     checkpointX = body.x; checkpointY = body.y;
@@ -482,6 +566,16 @@ export function boot(canvas, opts) {
           (pool.type[id] === Enemies.TYPE.SHARD || pool.type[id] === Enemies.TYPE.TOKEN ||
            pool.type[id] === Enemies.TYPE.BOLT)) pool.free(id);
     }
+    /* AYNA'nin ordugu duvarlar da silinir. Ayni sinif: isinlanma checkpoint'e
+     * yapiliyor ve o hucreye bu sirada bir duvar orulmus olabilir — govde
+     * kati bir karonun ICINDE dirilirse fizik onu cozemez. Duvar yerlestirme
+     * kurali oyuncunun O ANKI kolonunu zaten atliyor ama respawn govdeyi
+     * BASKA bir yere tasidigi icin o koruma burada gecerli degil. */
+    arenaWalls.reset();
+    /* Yasayan bir patron dovusu BASTAN baslar (bkz. resetActiveBossFights).
+     * arenaWalls.reset() zaten yukarida cagrildi; patron kendi duvarlarini
+     * ayrica temizlemeye calissa da idempotent. */
+    resetActiveBossFights();
     /* bulunan gercek eksik (asil rapor edilen sonsuz-olum dongusu): pushWallX
      * SADECE duvarin KENDI yakalamasinda geri cekiliyordu — oyuncu duvarla
      * ALAKASIZ bir sebeple (bir cukur, vb.) olurse duvar oldugu yerde (checkpoint'in
@@ -593,14 +687,33 @@ export function boot(canvas, opts) {
     return pipFlashState;
   }
 
+  /* ==========================================================================
+   * COMMIT TASI — Y'SI GOVDEDEN DEGIL ZEMINDEN GELIR
+   * ==========================================================================
+   * BULUNAN GERCEK KILITLENME (bot olcumu, W6 tile 157'de 873 pespese olum):
+   * kayit noktasinin Y'si `body.y` ile, yani oyuncunun tasin X'ini GECTIGI
+   * ANDAKI yuksekligiyle yaziliyordu. Bir cukura duserken saga surüklenip
+   * tasin x'ini gecen oyuncu, kayit noktasini CUKURUN DIBINE yazdiriyor:
+   *
+   *     tas = (2512, 226)   HAZARD_FLOOR_Y = 240   govde boyu = 14
+   *     226 + 14 = 240  ->  respawnIfFallen() HER KAREDE tetikleniyor
+   *
+   * Sonuc: dogar dogmaz olen, cikisi OLMAYAN bir dongu. Sessizdi — oyun
+   * acilirken hicbir belirti vermiyor, ancak o cukura o sekilde dusen oyuncuda
+   * ortaya cikiyordu. Y artik tasin KENDI kolonundaki zeminden turetilir
+   * (computeBeacons ile AYNI kaynak), yani nereden gecildigi hicbir sey
+   * degistirmez. Dunya dosyalarinin spawnY sozlesmesiyle ayni ofset: zemin-20. */
+  function commitAtBeacon(bcn) {
+    checkpointX = bcn.x;
+    checkpointY = bcn.y - COMMIT_BODY_UP;
+    audio.play("commit");
+    particles.burst(body.x + body.w / 2, body.y + body.h / 2, Math.min(8, perf.particleBudget), SLOT.LED);
+  }
+
   function updateCheckpointsAndDrains() {
     if (currentWorld !== 1) return;
-    for (const b of w1Bounds) {
-      if (body.x >= b.startX && checkpointX < b.startX) {
-        checkpointX = b.startX; checkpointY = body.y;
-        audio.play("commit");
-        particles.burst(body.x + body.w / 2, body.y + body.h / 2, Math.min(8, perf.particleBudget), SLOT.LED);
-      }
+    for (const bcn of w1Beacons) {
+      if (body.x >= bcn.x && checkpointX < bcn.x) commitAtBeacon(bcn);
     }
     if (body.x >= w1B1EndX && rate > RATE_V0.floor.w1 && !drainedB1) { applyDrain(RATE_V0.floor.w1, RATE_V0.per.w1); drainedB1 = true; }
     if (body.x >= w1D1EndX && !drainedD1) { applyDrain(RATE_V0.floor.w1, RATE_V0.per.w1); drainedD1 = true; }
@@ -613,18 +726,18 @@ export function boot(canvas, opts) {
    * son serit boss'tan SONRA cikis rampasinda). */
   function updateW6Drains() {
     if (currentWorld !== 6) return;
-    for (const cx of w6Commits) {
-      if (body.x >= cx && checkpointX < cx) {
-        checkpointX = cx; checkpointY = body.y;
-        audio.play("commit");
-        particles.burst(body.x + body.w / 2, body.y + body.h / 2, Math.min(8, perf.particleBudget), SLOT.LED);
-      }
+    for (const bcn of w6Beacons) {
+      if (body.x >= bcn.x && checkpointX < bcn.x) commitAtBeacon(bcn);
     }
     if (!drainedW6Mid && body.x >= w6MidA6X) { applyDrain(RATE_V0.floor.w6, RATE_V0.per.w6); drainedW6Mid = true; }
     if (!drainedW6End && body.x >= w6.bossTriggerX) { applyDrain(RATE_V0.floor.w6, RATE_V0.per.w6); drainedW6End = true; }
     if (!drainedW6PostBoss && body.x >= w6.mergeTriggerX) { applyDrain(RATE_V0.floor.w6, RATE_V0.per.w6); drainedW6PostBoss = true; }
   }
   let drainedW6Mid = false, drainedW6End = false, drainedW6PostBoss = false;
+  /* AYNA yenilince gelen ek serit cekisi. RATE_V0.drains.w6 = 3 bir ASGARI
+   * yeterlilik kontroludur (assertRateCurveV0), tavan degil — dorduncu bir
+   * cekis egriyi bozmaz, yalniz SON SINAV boyunca biriken itaati odullendirir. */
+  let drainedW6Mirror = false;
 
   /* Devam-yakalama: resume commit tasi zaten bir esigin GERISINDEYSE, o esik
    * tekrar draine OLMASIN (yukaridaki resume dalinin devami — checkpointX o
@@ -656,6 +769,46 @@ export function boot(canvas, opts) {
     if (body.x >= hotChannelX1) { hotChannelX1 = null; return; }
     hotChannelTimer--;
     if (hotChannelTimer <= 0) { triggerRevert(); hotChannelX1 = null; }
+  }
+
+  /* ==========================================================================
+   * KIVILCIM YAĞMURU ŞERIDI (X1) — patron saldirisi, parkurun ICINDE
+   * ==========================================================================
+   * Bir patron kalibini (YOKSAY'in gokten mermisi) parkura tasir: SON SINAV'in
+   * ortasinda, dovus alani olmayan bir koridorda. Amaci hem yeni bir tehlike
+   * eklemek hem de AYNA'nin GÖKTEN AĞ kalibini ONCEDEN ogretmek — patron
+   * arenasinda ilk kez gorulen bir sey olmasin.
+   *
+   * ADALET: her dalgada sutunlarin YARISI duser ve donusumlu degisir, yani
+   * gecilecek bir yol HER ZAMAN vardir; dusen mermi havada VURULABILIR;
+   * telegraf yere isaret koyar. Oyuncu bolgeden cikinca sayac sifirlanir —
+   * arkadan sessizce mermi yagmaz. */
+  const RAIN_PERIOD = 96;
+  const RAIN_TELEGRAPH = 34;
+  const RAIN_HEIGHT = 200, RAIN_VY = 1.2, RAIN_GRAV = 0.10;
+
+  function rainColumnFalls(i, wave) { return ((i + wave) & 1) === 0; }
+
+  function updateShellRain() {
+    const zones = worldData().hazards && worldData().hazards.shellRain;
+    if (!zones) { rainZone = null; return; }
+    const cx = body.x + body.w * 0.5;
+    let z = null;
+    for (const zz of zones) {
+      if (cx >= zz.x0 - TILE * 2 && cx < zz.x1 + TILE * 2) { z = zz; break; }
+    }
+    if (z !== rainZone) { rainZone = z; rainTimer = 0; rainWave = 0; }
+    if (!z) return;
+    rainTimer++;
+    /* Ses ISARETLE birlikte gelir, mermiyle degil: uyari uyari olsun. */
+    if (rainTimer === RAIN_PERIOD - RAIN_TELEGRAPH) audio.play("telegraph");
+    if (rainTimer < RAIN_PERIOD) return;
+    rainTimer = 0;
+    for (let i = 0; i < z.cols.length; i++) {
+      if (!rainColumnFalls(i, rainWave)) continue;
+      Enemies.spawnShard(pool, z.cols[i], z.groundY - RAIN_HEIGHT, 0, RAIN_VY, RAIN_GRAV);
+    }
+    rainWave++;
   }
 
   function updatePushWall() {
@@ -865,6 +1018,20 @@ export function boot(canvas, opts) {
     overrideLabels.patterns[2] = i18n.lex("atk.summon");
     return overrideLabels;
   }
+  /* AYNA'nin bes kalibi (bkz. bosses.js MR_PATTERN sirasi:
+   * NİŞAN / DUVAR / KOŞU / AĞ / ÇAĞRI). */
+  const mirrorLabels = { name: "", shoot: "", blocked: "", patterns: ["", "", "", "", ""] };
+  function mirrorLabelPack() {
+    mirrorLabels.name = i18n.data.bossNames.mirror;
+    mirrorLabels.shoot = i18n.lex("shootAt") + " (" + actionKeyName() + ")";
+    mirrorLabels.blocked = i18n.lex("shielded");
+    mirrorLabels.patterns[0] = i18n.lex("atk.aimed");
+    mirrorLabels.patterns[1] = i18n.lex("atk.wall");
+    mirrorLabels.patterns[2] = i18n.lex("atk.dash");
+    mirrorLabels.patterns[3] = i18n.lex("atk.net");
+    mirrorLabels.patterns[4] = i18n.lex("atk.summon");
+    return mirrorLabels;
+  }
 
   /* ==========================================================================
    * MERMI -> PATRON. Havuzdaki carpismalar enemies.boltHitTest'te cozulur ama
@@ -923,19 +1090,34 @@ export function boot(canvas, opts) {
     sceneManager.playDialogue([{ who: "N", line: i18n.lex("gateLocked") }]);
   }
 
-  /* ARENA COMMIT TASI (dovus revizyonuyla dogan gercek ihtiyac): menzilli
-   * dovuste vurulmak artik cok daha sik. Eskiden dovus sirasindaki GERI AL
-   * oyuncuyu bir onceki segment sinirina (KOKLAYICI'da ~600 px geriye)
-   * atiyordu ve her hatanin bedeli uzun bir geri yuruyustu — bot olcumunde
-   * dovus suresinin buyuk kismi bu yuruyuse gidiyordu. Patron dogar dogmaz
-   * commit tasi ARENA GIRISINE tasinir: hata yine bir bedel, ama bedeli
-   * dovusun kendisi, koridoru tekrar yurumek degil. */
-  function bossCheckpoint(triggerX, groundY) {
-    const cx = triggerX + 30;
-    if (checkpointX >= cx) return;
-    checkpointX = cx;
-    checkpointY = groundY - 20;
-    audio.play("commit");
+  /* ==========================================================================
+   * PATRON DOVUSU KAYBEDILINCE BASTAN BASLAR (oyun testiyle geldi)
+   * ==========================================================================
+   * Onceki surumde patron dogar dogmaz commit tasi ARENA GIRISINE tasiniyordu
+   * (`bossCheckpoint`). Gerekce "hatanin bedeli dovus olsun, geri yuruyus
+   * degil"di; pratikte cikan sey baska oldu: oyuncu OLDUGU YERDE diriliyor,
+   * patronun cani ise kaldigi yerden devam ediyordu. Yani olum bir ceza degil,
+   * neredeyse bedava bir mermi ikmali oluyordu — dovus "kaybedilemez"in otesine
+   * gecip "riski olmayan"a dusuyordu.
+   *
+   * Yeni kural (istenen davranis): GERI AL dovusu SIFIRLAR.
+   *   - Kayit noktasi arenaya HIC tasinmaz; oyuncu arenanin ONCESINDEKI son
+   *     commit tasinda dirilir ve arenaya yeniden girer.
+   *   - Yasayan patron `reset()` ile tam cana ve ilk fazina doner; avcilari,
+   *     mermileri ve (AYNA icin) ordugu duvarlar temizlenir.
+   * Patron YENILMISSE dokunulmaz (reset() no-op'tur) — gecilmis bir dovus
+   * geri gelmez.
+   * ========================================================================== */
+  function resetActiveBossFights() {
+    if (boss && !boss.isDefeated) boss.reset();
+    if (overrideBoss && !overrideBoss.isDefeated) overrideBoss.reset();
+    if (mirrorBoss && !mirrorBoss.isDefeated) {
+      mirrorBoss.reset();
+      /* Arena kapisi da yeniden "silahsizlanir": oyuncu artik disarida, sol
+       * kapi acikken tutulursa her karede iceri itilirdi. */
+      mirrorLeftArmed = false;
+    }
+    bossPhase2Committed = false;
   }
 
   function updateBoss(dt) {
@@ -958,7 +1140,6 @@ export function boot(canvas, opts) {
         audio.play("shoot");
       }
       boss = createSniffer(w1BossX, w1BossY, pool, !!(save.settings && save.settings.balanced));
-      bossCheckpoint(w1.bossTriggerX, w1BossGroundY);
       sceneManager.playDialogue(bossIntro(i18n.data.bosses.sniffer));
     }
     if (!boss) return;
@@ -978,7 +1159,6 @@ export function boot(canvas, opts) {
     if (!overrideBoss && body.x >= w6.bossTriggerX) {
       overrideBoss = createOverride(w6BossX, w6BossY, pool,
         !!(save.settings && save.settings.balanced), w6Arena);
-      bossCheckpoint(w6.bossTriggerX, w6BossGroundY);
       sceneManager.playDialogue(bossIntro(i18n.data.bosses.override));
     }
     if (!overrideBoss) return;
@@ -1001,11 +1181,90 @@ export function boot(canvas, opts) {
     if (body.x > w6ArenaHoldX) { body.x = w6ArenaHoldX; if (body.vx > 0) body.vx = 0; }
   }
 
+  /* ==========================================================================
+   * SON SINAV — AYNA (oyunun son ve en zor dovusU)
+   * ==========================================================================
+   * YOKSAY'in ayni cerceveSi (dogus + commit tasi + dogus balonu + mermi
+   * carpismasi + tamamlanan saldiri basina oran) uzerine UC fark:
+   *   1. Arena iki yandan da kapanir (bkz. x1Arena notu).
+   *   2. Patronun GOVDESI, yalniz KOŞU kalibinda tehlikelidir — temas GERI
+   *      AL'dir (D-2 korunur, olum yok).
+   *   3. Yenilince ek bir serit cekisi gelir: SON SINAV boyunca biriken
+   *      itaatin bedeli burada odenir.
+   * ========================================================================== */
+  function updateMirror(dt) {
+    if (currentWorld !== 6) return;
+    /* ISINLANMA SIRASINDA HICBIR SEY YAPMA (bulunan gercek hata, bot olcumu:
+     * olunce govde 6372'de — arenanin SOL KAPISINDA — kaliyordu, kayit tasi
+     * ise 6176'da). Zincir soyle: hazardHitTest/contactTest `triggerRevert()`
+     * cagirir, o da `mirrorLeftArmed`'i indirir; ama AYNI KAREDE bu fonksiyon
+     * akmaya devam eder ve govde hala arenanin ICINDE oldugu icin kapiyi
+     * TEKRAR kurar. Isinlanma bitince "arenanin disina cikmis" govde her
+     * karede kapiya geri cekilir — yani oyuncu dovusun icine geri surüklenir.
+     * Ana dongu zaten isinlanma sirasinda buraya hic ugramaz; bu satir SADECE
+     * revert'in tetiklendigi O KAREYI kapatir. */
+    if (revertTimer > 0) return;
+    /* UST SINIR (bulunan gercek risk): commit tasi arenanin ILERISINDE
+     * kaydedilmis bir oturuma devam edilirse (AYNA yenildikten sonra R1'in
+     * segment tasina basip cikilirsa) patron oyuncunun ARKASINDA doguyor,
+     * sag kapi da aninda oyuncuyu arenaya GERI CEKIYOR — cikilmis bir dovus
+     * zorla tekrar ettiriliyordu. Tetik artik bir ARALIK: arenayi gecmis
+     * olan bir govde patronu uyandirmaz. */
+    if (!mirrorBoss && body.x >= w6.x1BossTriggerX && body.x < x1ArenaX1) {
+      /* KOKLAYICI'daki ayni kilitlenme emniyeti: cani YALNIZ mermiyle inen bir
+       * patronun onunde ATEŞ ET kilitliyse oyun BITIRILEMEZ. */
+      if (!verbs.isUnlocked(VERB.SHOOT)) {
+        verbs.unlock(VERB.SHOOT);
+        save.verbs |= (1 << SaveMod.PIP_BIT.SHELL);
+        save.pips |= (1 << SaveMod.PIP_BIT.SHELL);
+        pipFlashIndex = SaveMod.PIP_BIT.SHELL;
+        pipFlashFrames = PIP_FLASH_FRAMES;
+        audio.play("shoot");
+      }
+      arenaWalls.setMap(w6.map);
+      mirrorBoss = createMirror(x1BossX, x1BossY, pool,
+        !!(save.settings && save.settings.balanced), x1Arena);
+      sceneManager.playDialogue(bossIntro(i18n.data.bosses.mirror));
+    }
+    if (!mirrorBoss) return;
+    if (mirrorBoss.isDefeated) {
+      if (!mirrorDefeatedHandled) {
+        mirrorDefeatedHandled = true;
+        arenaWalls.reset();
+        if (!drainedW6Mirror) { applyDrain(RATE_V0.floor.w6, RATE_V0.per.w6); drainedW6Mirror = true; }
+        sceneManager.playDialogue([{ who: "N", line: i18n.data.final[1] }]);
+      }
+      return;
+    }
+    mirrorBoss.update(dt, body, (kind) => {
+      if (kind === "attack") applyObey(RATE_V0.floor.w6);
+      else if (kind === "dash") audio.play("dash");
+      else if (kind === "wall") audio.play("wall");
+      else if (kind === "spawn") audio.play("obey");
+    });
+    bossBoltHits(mirrorBoss);
+    /* KOŞU temasi revert'i BU FONKSIYONUN ICINDEN tetikler — fonksiyon
+     * basindaki `revertTimer > 0` korumasi bu yolu goremez. Tetikledigin
+     * karede DERHAL cik, yoksa asagidaki kapi mantigi calisir ve az once
+     * indirilen `mirrorLeftArmed`'i tekrar kurar (olculdu: govde 6372'de
+     * takiliyordu, kayit tasi 6176'da). */
+    if (mirrorBoss.contactTest(body)) { triggerRevert(); return; }
+
+    if (!mirrorLeftArmed && body.x >= x1ArenaX0) mirrorLeftArmed = true;
+    if (mirrorLeftArmed && body.x < x1ArenaX0) { body.x = x1ArenaX0; if (body.vx < 0) body.vx = 0; }
+    if (body.x > x1ArenaX1) { body.x = x1ArenaX1; if (body.vx > 0) body.vx = 0; }
+  }
+
   function tryMergePrompt() {
     if (currentWorld !== 6 || mergeStarted || mergeDone) return;
-    if (!mergeAvailable && overrideBoss && overrideBoss.isDefeated && body.x >= w6.mergeTriggerX - 4) {
+    /* Iki patron da yenilmeden MERGE teklif EDILMEZ. Pratikte AYNA'nin arena
+     * kapisi bunu zaten garanti eder; kosul yine de acikca yazilir ki
+     * ilerideki bir kisayol (BÖLÜM SEÇ, debug girisi) sessizce bitis
+     * uretemesin. */
+    if (!mergeAvailable && overrideBoss && overrideBoss.isDefeated &&
+        (!mirrorBoss || mirrorBoss.isDefeated) && body.x >= w6.mergeTriggerX - 4) {
       mergeAvailable = true;
-      sceneManager.playDialogue([{ who: "N", line: i18n.data.final[1] }]);
+      sceneManager.playDialogue([{ who: "N", line: i18n.data.final[2] }]);
     }
   }
 
@@ -1028,7 +1287,7 @@ export function boot(canvas, opts) {
     rate = Math.round(mergeStartRate + (RATE_V0.merge - mergeStartRate) * t);
     if (mergeTimer >= 200 && !mergeF3Shown && !sceneManager.isDialogueActive()) {
       mergeF3Shown = true;
-      sceneManager.playDialogue([{ who: "N", line: i18n.data.final[2] }]);
+      sceneManager.playDialogue([{ who: "N", line: i18n.data.final[3] }]);
     }
     if (mergeTimer >= 360) {
       rate = RATE_V0.merge;
@@ -1070,7 +1329,7 @@ export function boot(canvas, opts) {
 
     if (epClosingTimer >= 200 && !epF4Shown && !sceneManager.isDialogueActive()) {
       epF4Shown = true;
-      sceneManager.playDialogue([{ who: "N", line: i18n.data.final[3] }]);
+      sceneManager.playDialogue([{ who: "N", line: i18n.data.final[4] }]);
     }
     if (epClosingTimer >= EP_CLOSING_FRAMES) {
       save.finished = true;
@@ -1091,10 +1350,12 @@ export function boot(canvas, opts) {
     currentWorld = 0;
     verbs.reset();
     boss = null; overrideBoss = null; overrideDefeatedHandled = false; bossPhase2Committed = false;
+    mirrorBoss = null; mirrorDefeatedHandled = false; mirrorLeftArmed = false;
     drainedB1 = false; drainedD1 = false; drainedPostBoss = false;
-    drainedW6Mid = false; drainedW6End = false; drainedW6PostBoss = false;
+    drainedW6Mid = false; drainedW6End = false; drainedW6PostBoss = false; drainedW6Mirror = false;
     pushWallX = null; pushWallGrace = 0;
     hotChannelX1 = null; hotChannelTimer = 0;
+    rainZone = null; rainTimer = 0; rainWave = 0;
     mergeAvailable = false; mergeStarted = false; mergeDone = false;
     mergeTimer = 0; mergeStartRate = 0; mergeF3Shown = false;
     epFinishHandled = false; epClosing = false; epClosingTimer = 0; epF4Shown = false;
@@ -1109,6 +1370,7 @@ export function boot(canvas, opts) {
     maxWorldReached = 0;
     sceneManager.clearDialogue();
     fakeTiles.reset();
+    arenaWalls.reset();
     ghost.reset();
     spawnWorldEnemies(w0);
     body.x = w0.spawnX; body.y = w0.spawnY; body.vx = 0; body.vy = 0;
@@ -1132,10 +1394,12 @@ export function boot(canvas, opts) {
     currentWorld = w;
     const wd = worldData();
     boss = null; overrideBoss = null; overrideDefeatedHandled = false; bossPhase2Committed = false;
+    mirrorBoss = null; mirrorDefeatedHandled = false; mirrorLeftArmed = false;
     drainedB1 = false; drainedD1 = false; drainedPostBoss = false;
-    drainedW6Mid = false; drainedW6End = false; drainedW6PostBoss = false;
+    drainedW6Mid = false; drainedW6End = false; drainedW6PostBoss = false; drainedW6Mirror = false;
     pushWallX = null; pushWallGrace = 0;
     hotChannelX1 = null; hotChannelTimer = 0;
+    rainZone = null; rainTimer = 0; rainWave = 0;
     mergeAvailable = false; mergeStarted = false; mergeDone = false;
     mergeTimer = 0; mergeStartRate = 0; mergeF3Shown = false;
     epFinishHandled = false; epClosing = false; epClosingTimer = 0; epF4Shown = false;
@@ -1148,6 +1412,7 @@ export function boot(canvas, opts) {
     rateBumpFrames = 0; rateBumpAmount = 0; verbFlashFrames = 0; groundFlashFrames = 0;
     sceneManager.clearDialogue();   /* eski bolumun yarim balonu tasinmasin */
     fakeTiles.reset();   /* cokmus karolar kalici delik birakmasin */
+    arenaWalls.reset();  /* orulu duvarlar da haritada kalmasin */
     verbs.reset();
     ghost.reset();
     if (w > 0) seedGhostFallback();
@@ -1402,6 +1667,10 @@ export function boot(canvas, opts) {
       fakeTiles.setMap(wd.map);
       fakeTiles.setBalanced(!!(save.settings && save.settings.balanced));
       fakeTiles.update(body);
+      /* AYNA'nin duvarlari da haritayi yazan bir sistem: setMap/update ayni
+       * yerde, ayni sirada — dunya degisince eski harita ONCE onarilir. */
+      arenaWalls.setMap(wd.map);
+      arenaWalls.update();
       if (fakeTiles.crackedThisFrame) {
         const c = fakeTiles.crackedThisFrame;
         audio.play("crack");
@@ -1436,7 +1705,14 @@ export function boot(canvas, opts) {
       Enemies.update(pool, dt, body, wd.map, () => {
         const floor = currentWorld === 1 ? RATE_V0.floor.w1 : currentWorld === 6 ? RATE_V0.floor.w6 : rate;
         applyObey(floor);
-      }, null);
+      }, null, (hx, hy) => {
+        /* Mermi kati bir seye carpti: AYNA'nin ordugu bir duvarsa KIRILIR.
+         * Dunyanin normal zemininde breakAt() false doner ve hicbir sey olmaz. */
+        if (arenaWalls.breakAt(hx, hy)) {
+          audio.play("collapse");
+          particles.burst(hx, hy, Math.min(6, perf.particleBudget), SLOT.SECONDARY);
+        }
+      });
 
       /* Mermi carpismalari, dusmanlar HAREKET ETTIKTEN sonra cozulur: aksi
        * halde ayni karede yer degistiren bir hedefin ESKI konumuna gore karar
@@ -1451,10 +1727,12 @@ export function boot(canvas, opts) {
       updateW6Drains();
       updatePushWall();
       updateHotChannel();
+      updateShellRain();
       updateGhost();
       tryWorldTransition();
       updateBoss(dt);
       updateOverrideBoss(dt);
+      updateMirror(dt);
       tryMergePrompt();
       updateMerge();
       updateEPFinish();
@@ -1535,12 +1813,14 @@ export function boot(canvas, opts) {
 
       renderer.drawMap(wd.map, rcx, rcy);
       drawHotChannelBand(renderer.ctx, rcx, rcy);
+      drawShellRainBand(renderer.ctx, rcx, rcy);
 
       /* Aktif arenada dunya tabelasi CIZILMEZ: patronun ustundeki canli okuma
        * (ad + ilerleme + "su an ne yap" + zamanlama cubugu) ile parkur
        * tabelasi ayni yatay bantta cakisiyordu (ekran goruntusuyle raporlandi).
        * Dovus sirasinda oyuncunun ihtiyaci olan bilgi zaten patronun uzerinde. */
       const arenaX = (currentWorld === 1 && boss && !boss.isDefeated) ? w1BossX
+        : (currentWorld === 6 && mirrorBoss && !mirrorBoss.isDefeated) ? x1BossX
         : (currentWorld === 6 && overrideBoss && !overrideBoss.isDefeated) ? w6BossX
         : null;
 
@@ -1569,6 +1849,8 @@ export function boot(canvas, opts) {
         drawExitGate(renderer.ctx, w0.exitX, w0.exitY, rcx, rcy, false);
       } else if (currentWorld === 1) {
         drawExitGate(renderer.ctx, w1.exitX, w1.exitY, rcx, rcy, !(boss && boss.isDefeated));
+      } else if (currentWorld === 7) {
+        drawFinishLine(renderer.ctx, ep.finishX, ep.finishY, rcx, rcy);
       }
 
       if (pushWallX !== null) {
@@ -1614,6 +1896,11 @@ export function boot(canvas, opts) {
         overrideBoss.draw(renderer.ctx, rcx, rcy, palette, font, creatureSprites, ghost.getBand(), overrideLabelPack());
         drawOffscreenBossMarker(renderer.ctx, w6BossX, rcx, i18n.data.bossNames.override, overrideBoss.isDefeated);
       }
+      if (mirrorBoss) {
+        drawArenaGates(renderer.ctx, rcx, rcy, mirrorBoss.isDefeated);
+        mirrorBoss.draw(renderer.ctx, rcx, rcy, palette, font, creatureSprites, mirrorLabelPack());
+        drawOffscreenBossMarker(renderer.ctx, mirrorBoss.x, rcx, i18n.data.bossNames.mirror, mirrorBoss.isDefeated);
+      }
       if (mergeStarted) {
         /* MERGE zemini: normal tilemap yerine 240 karelik banttan cizilir —
          * kayitli yolun GECMEDIGI yerde platform yok (§2.4). Oyuncu duruyor;
@@ -1634,6 +1921,7 @@ export function boot(canvas, opts) {
         }
       }
       fakeTiles.draw(renderer.ctx, rcx, rcy, palette);
+      arenaWalls.draw(renderer.ctx, rcx, rcy, palette);
       drawGroundTarget(renderer.ctx, rcx, rcy);
       if (lieFrames > 0 && lieText) {
         renderer.ctx.save();
@@ -1747,6 +2035,45 @@ export function boot(canvas, opts) {
     if (locked) font.drawCentered(ctx, i18n.lex("locked"), gx, gy - H - 24, SLOT.HAZARD, 1);
   }
 
+  /* ==========================================================================
+   * BITIS CIZGISI (EP) — bulunan gercek eksik
+   * ==========================================================================
+   * "En sonda bitis cizgisi gorunmuyor ama oyun bitiyor" (oyun testi). Dogruydu:
+   * `ep.finishX` GORUNMEZ bir x esigiydi. W0/W1'in cikis kapisi ciziliyor,
+   * MERGE kendi istemini gosteriyor, EP'nin bitisi ise hicbir sey gostermiyordu
+   * — oyuncu bombos bir duzlukte kosarken oyun kendiliginden kapaniyor, "ne
+   * oldu da bitti" sorusunun ekranda cevabi kalmiyordu.
+   *
+   * Cizgi bilincli olarak YARIS damasi: direk + damali bant + yere inen nabizli
+   * cizgi. Bolumun adi "SLUG OTOYOLU" ve bu bir zafer turu — kapi degil, BITIS
+   * CIZGISI olmali. Epilog kapanisi basladiktan sonra da cizilmeye devam eder
+   * (kamera ondan uzaklasirken geride kalir), boylece "gectim" ani gorunur. */
+  function drawFinishLine(ctx, x, groundY, camX, camY) {
+    const gx = Math.round(x - camX);
+    if (gx < -70 || gx > VIEW_W + 70) return;
+    const gy = Math.round(groundY - camY);
+    const POLE_H = 104, BAND_H = 64, CELL = 8;
+    ctx.save();
+    /* Damali bant: iki kolon, satir satir sasirtmali — uzaktan bir bakista
+     * "bitis" olarak okunan tek desen budur. */
+    ctx.globalAlpha = 0.92;
+    for (let r = 0; r * CELL < BAND_H; r++) {
+      for (let c = 0; c < 2; c++) {
+        ctx.fillStyle = palette.css[((r + c) & 1) ? SLOT.LIGHT : SLOT.BLACK];
+        ctx.fillRect(gx - CELL + c * CELL, gy - BAND_H + r * CELL, CELL, CELL);
+      }
+    }
+    /* Direk + tepede kucuk bayrak */
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = palette.css[SLOT.INK];
+    ctx.fillRect(gx - 1, gy - POLE_H, 2, POLE_H - BAND_H + 2);
+    ctx.globalAlpha = reduceMotion ? 0.85 : 0.7 + Math.sin(Date.now() / 300) * 0.25;
+    ctx.fillStyle = palette.css[SLOT.ACCENT];
+    ctx.fillRect(gx + 1, gy - POLE_H, 14, 9);
+    ctx.restore();
+    font.drawCentered(ctx, i18n.lex("merge"), gx, gy - POLE_H - 12, SLOT.ACCENT, 1);
+  }
+
   /* ZEMİN YAP hedef hucresi — raporlanan "hic karo atilmiyor"in asil sebebi
    * bu isaretin YOKLUGUYDU: yetenek dogru calisiyor ama YALNIZ bir boslugun
    * TAM kenarindayken is goruyor (bir karo geride bile hedef hucre dolu, yani
@@ -1846,6 +2173,62 @@ export function boot(canvas, opts) {
     ctx.restore();
   }
 
+  /* KIVILCIM YAĞMURU seridi: bolge bandi + DUSECEK sutunlarin yer isareti.
+   * Isaretler dalgadan RAIN_TELEGRAPH kare once belirir ve dolar — hangi
+   * sutunun bos kalacagi ezberlenecek degil OKUNACAK bir sey olsun (YOKSAY'in
+   * gokten mermi telegrafiyla ayni dil, bilincli olarak ayni). */
+  function drawShellRainBand(ctx, camX, camY) {
+    const zones = worldData().hazards && worldData().hazards.shellRain;
+    if (!zones) return;
+    ctx.save();
+    for (const z of zones) {
+      const gx0 = z.x0 - camX, gx1 = z.x1 - camX;
+      if (gx1 < 0 || gx0 > VIEW_W) continue;
+      const gy = Math.round(z.groundY - camY);
+      const active = rainZone === z;
+      ctx.globalAlpha = active ? 0.13 : 0.07;
+      ctx.fillStyle = palette.css[SLOT.HAZARD];
+      const x0 = Math.max(0, gx0), x1 = Math.min(VIEW_W, gx1);
+      ctx.fillRect(Math.round(x0), gy - RAIN_HEIGHT, Math.round(x1 - x0), RAIN_HEIGHT);
+      if (!active) continue;
+      const soon = RAIN_PERIOD - rainTimer;
+      if (soon > RAIN_TELEGRAPH) continue;
+      const t = 1 - soon / RAIN_TELEGRAPH;
+      for (let i = 0; i < z.cols.length; i++) {
+        if (!rainColumnFalls(i, rainWave)) continue;
+        const rx = Math.round(z.cols[i] - camX);
+        ctx.globalAlpha = 0.18 + t * 0.34;
+        ctx.fillRect(rx - 3, gy - RAIN_HEIGHT, 6, RAIN_HEIGHT);
+        ctx.globalAlpha = 0.5 + t * 0.4;
+        ctx.fillRect(rx - 7, gy - 3, 14, 3);
+      }
+    }
+    ctx.restore();
+  }
+
+  /* SON SINAV arenasinin IKI kapisi. Gorunmez bir duvara toslamak "oyun
+   * bozuk" gibi okunur (W6'nin sag tutma alaninda zaten bir kez ogrenildi);
+   * burada kapi GORUNUR: sag taraf patron dogar dogmaz, sol taraf ise ancak
+   * gercekten iceri girildikten sonra (bkz. mirrorLeftArmed) tam parlaklikta
+   * cizilir. */
+  function drawArenaGates(ctx, camX, camY, defeated) {
+    if (defeated) return;
+    const gy = Math.round(x1BossGroundY - camY);
+    const H = 128;
+    const pulse = reduceMotion ? 0.5 : 0.42 + Math.sin(Date.now() / 340) * 0.14;
+    ctx.save();
+    ctx.fillStyle = palette.css[SLOT.HAZARD];
+    for (let side = 0; side < 2; side++) {
+      const wx = side === 0 ? x1ArenaX0 : x1ArenaX1;
+      const gx = Math.round(wx - camX);
+      if (gx < -14 || gx > VIEW_W + 14) continue;
+      ctx.globalAlpha = (side === 0 && !mirrorLeftArmed) ? 0.16 : pulse;
+      ctx.fillRect(gx - 2, gy - H, 4, H);
+      for (let ly = gy - H; ly < gy; ly += 10) ctx.fillRect(gx - 5, ly, 10, 2);
+    }
+    ctx.restore();
+  }
+
   function drawHotChannelCountdown(ctx, camX, camY) {
     if (hotChannelX1 === null) return;
     const w = 18;
@@ -1904,9 +2287,13 @@ export function boot(canvas, opts) {
      * kilometre taslarindan turetilir, tek kaynak patronun kendisi.) */
     const ovCommits = currentWorld === 6 && overrideBoss
       ? (overrideBoss.isDefeated ? 2 : (overrideBoss.phase >= 2 ? 1 : 0)) : 0;
-    const commitExtra = currentWorld === 6 ? ovCommits
+    /* AYNA UC fazli oldugu icin UC kilometre tasi sayar (faz 2, faz 3,
+     * yenilgi) — commit grafigi son dovusun uzunlugunu de gostersin. */
+    const mrCommits = currentWorld === 6 && mirrorBoss
+      ? (mirrorBoss.isDefeated ? 3 : (mirrorBoss.phase >= 3 ? 2 : (mirrorBoss.phase >= 2 ? 1 : 0))) : 0;
+    const commitExtra = currentWorld === 6 ? ovCommits + mrCommits
       : currentWorld === 1 ? ((boss && boss.isDefeated) ? 2 : (bossPhase2Committed ? 1 : 0)) : 0;
-    const commitExtraTotal = currentWorld === 6 ? 2 : currentWorld === 1 ? 2 : 0;
+    const commitExtraTotal = currentWorld === 6 ? 5 : currentWorld === 1 ? 2 : 0;
     return {
       commits: commitBounds.filter((b) => checkpointX >= b.startX).length + commitExtra,
       commitsTotal: commitBounds.length + commitExtraTotal
@@ -2002,6 +2389,13 @@ export function boot(canvas, opts) {
         overridePattern: overrideBoss ? overrideBoss.pattern : null,
         overrideHp: overrideBoss ? overrideBoss.hp : null,
         snifferHp: boss ? boss.hp : null,
+        mirrorHp: mirrorBoss ? mirrorBoss.hp : null,
+        mirrorPhase: mirrorBoss ? mirrorBoss.phase : null,
+        mirrorPattern: mirrorBoss ? mirrorBoss.pattern : null,
+        mirrorDashing: mirrorBoss ? mirrorBoss.dashing : false,
+        arenaWallCount: arenaWalls.count,
+        rainActive: rainZone !== null,
+        hotChannelX1, hotChannelTimer,
         mergeAvailable, mergeStarted, mergeDone, epClosing, epFinishHandled,
         gameFinished, perfTier: perf.tier, telemetry: telemetry.summary(),
         revertTimer, checkpointX, checkpointY,

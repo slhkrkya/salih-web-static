@@ -23,7 +23,12 @@ export default {
     pickStage: "BÖLÜM SEÇ", locked: "KİLİTLİ", cancel: "İPTAL",
     controls: "TUŞLAR", pips: "YETENEK",
     boss: "PATRON", shootAt: "ATEŞ ET", shielded: "KALKANI AÇIK",
-    atk: { rain: "GÖKTEN MERMİ", volley: "YATAY SALVO", summon: "AVCI ÇAĞIRIYOR" },
+    /* Patron saldirilarinin ekranda gorunen adlari. Ilk uc YOKSAY'in, son
+     * dordu AYNA'nindir (AVCI ÇAĞIRIYOR ikisinde de kullanilir). */
+    atk: {
+      rain: "GÖKTEN MERMİ", volley: "YATAY SALVO", summon: "AVCI ÇAĞIRIYOR",
+      aimed: "NİŞAN ALIYOR", wall: "DUVAR ÖRÜYOR", dash: "ÜSTÜNE KOŞUYOR", net: "GÖKTEN AĞ"
+    },
     keyAction: "J", keyGround: "Q", keyJump: "BOŞLUK",
     stageJumpNote: "Seçtiğin bölümün başından başlarsın.",
     confirmKeys: "AKSİYON onaylar, ZIPLA iptal eder.",
@@ -45,7 +50,7 @@ export default {
   worldNames: {
     w0: "1 — EĞİTİM", w1: "2 — KANAL", w6: "3 — YOKSAY", ep: "4 — OTOYOL"
   },
-  bossNames: { sniffer: "KOKLAYICI", override: "YOKSAY" },
+  bossNames: { sniffer: "KOKLAYICI", override: "YOKSAY", mirror: "AYNA" },
   menu: {
     m1: "Küçük bir platform oyunu, 4 bölüm.",
     m2: "Amaç: bitişe ulaş, İTAAT çubuğunu düşür.",
@@ -102,11 +107,19 @@ export default {
       ]
     },
     override: {
-      line: "Son patron. Kalkanı inince ateş et.",
+      line: "Kalkanı inince ateş et. Sonu değil bu.",
       hints: [
         "Üstünde sıradaki saldırının adı yazar.",
         "Gökten mermi yağarsa işaretsiz boşluğa geç.",
         "Salvoyu zıpla ya da Q ile siper alarak geç."
+      ]
+    },
+    mirror: {
+      line: "Son sınav. Bu şey senin gibi savaşıyor.",
+      hints: [
+        "Üstünde yazan saldırının adını oku.",
+        "Duvar örerse duvarı vur, kırılır.",
+        "Üstüne koşarsa zıpla, altından geçme."
       ]
     }
   },
@@ -131,8 +144,11 @@ export default {
     { id: "remote", name: "UZAKTAN RED", locked: "?", seal: null },
     { id: "topk", name: "ZİNCİR", locked: "?", seal: null }
   ],
+  /* KRONOLOJIK sira (boot.js bu diziyi indeksle okur): YOKSAY dustu ->
+   * AYNA dustu -> MERGE teklifi -> MERGE ortasi -> epilog kapanisi. */
   final: [
-    "Patronu geçtin, yol açıldı.",
+    "Patron düştü. Ama son sınav yeni başlıyor.",
+    "Aynayı da geçtin. Yol sonunda açıldı.",
     "AKSİYON tuşuna bas ve son bölüme geç.",
     "Son düzlük. Buradan sonrası sadece koşu.",
     "Bitirdin. Oynadığın için teşekkürler."

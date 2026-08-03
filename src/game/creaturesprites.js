@@ -305,6 +305,55 @@ const OVERRIDE_FILLS = [
   { B: "7", E: "b" }    /* window: LED govde (asil kod rengi), cekirdek tam parlak */
 ];
 
+/* ------------------------------------------------------------------ AYNA / MIRROR
+ * SON SINAV patronu. Silueti bilincli olarak IKI YARIYA bolunmustur (ortada
+ * bos bir dikey dikis) ve govdede iki cekirdek tasir: "senin bir kopyan"
+ * fikri sekilden okunsun, isim okunmadan da anlasilsin. Dort poz: bekleme /
+ * telegraf / ates / vuruldu — YOKSAY'da vurulma pozu YOKTU ve 36 canli bir
+ * dovuste "isabet ettim mi" sorusu yalniz can cubugundan cevaplaniyordu. */
+const MIRROR_W = 24, MIRROR_H = 32;
+export const MIRROR_POSE = Object.freeze({ IDLE: 0, TELEGRAPH: 1, WINDOW: 2, HIT: 3 });
+const MIRROR_TPL = [
+  "........BBBBBBBB........",
+  ".......BBBBBBBBBB.......",
+  "......BBBBBBBBBBBB......",
+  "......BBB.EEEE.BBB......",
+  "......BBB.EEEE.BBB......",
+  "......BBBBBBBBBBBB......",
+  ".......BBBBBBBBBB.......",
+  "........BBB..BBB........",
+  ".....BBBBBB..BBBBBB.....",
+  "....BBBBBBB..BBBBBBB....",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBEEEB..BEEEBBBB...",
+  "...BBBBEEEB..BEEEBBBB...",
+  "...BBBBEEEB..BEEEBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "...BBBBBBBB..BBBBBBBB...",
+  "....BBBBBBB..BBBBBBB....",
+  "....BBBBBBB..BBBBBBB....",
+  "....BBBBBB....BBBBBB....",
+  "....BBBBB......BBBBB....",
+  "....BBBB........BBBB....",
+  "....BBBB........BBBB....",
+  "....BBBB........BBBB....",
+  "....BBB..........BBB....",
+  "...BBBB..........BBBB...",
+  "...BBBB..........BBBB..."
+];
+const MIRROR_FILLS = [
+  { B: "6", E: "4" },   /* idle: SECONDARY govde, cekirdekler sonuk */
+  { B: "5", E: "b" },   /* telegraph: ACCENT, cekirdekler yaniyor */
+  { B: "e", E: "b" },   /* ates: tamamen HAZARD */
+  { B: "7", E: "b" }    /* vuruldu: LED parlamasi */
+];
+
 const CREATURES = {
   instruction: { w: INS_W, h: INS_H, tpl: INS_TPL, fills: INS_FILLS },
   pipeMouth: { w: PIPE_W, h: PIPE_H, tpl: PIPE_TPL, fills: PIPE_FILLS },
@@ -315,7 +364,8 @@ const CREATURES = {
   shard: { w: SHARD_W, h: SHARD_H, tpl: SHARD_TPL, fills: SHARD_FILLS },
   hunter: { w: HUNTER_W, h: HUNTER_H, tpl: HUNTER_TPL, fills: HUNTER_FILLS },
   sniffer: { w: SNIFFER_W, h: SNIFFER_H, tpl: SNIFFER_TPL, fills: SNIFFER_FILLS },
-  override: { w: OVERRIDE_W, h: OVERRIDE_H, tpl: OVERRIDE_TPL, fills: OVERRIDE_FILLS }
+  override: { w: OVERRIDE_W, h: OVERRIDE_H, tpl: OVERRIDE_TPL, fills: OVERRIDE_FILLS },
+  mirror: { w: MIRROR_W, h: MIRROR_H, tpl: MIRROR_TPL, fills: MIRROR_FILLS }
 };
 
 /* Maskeler tema-bagimsiz: modul yuklenirken BIR KEZ derlenir. */
@@ -381,7 +431,7 @@ export function createCreatureSprites(palette) {
     POSE: {
       INSTRUCTION: INS_POSE, PIPE_MOUTH: PIPE_POSE, NODE: NODE_POSE,
       BELL: BELL_POSE, TOKEN: TOKEN_POSE, SNIFFER: SNIFFER_POSE, OVERRIDE: OVERRIDE_POSE,
-      BOLT: BOLT_POSE, SHARD: SHARD_POSE, HUNTER: HUNTER_POSE
+      BOLT: BOLT_POSE, SHARD: SHARD_POSE, HUNTER: HUNTER_POSE, MIRROR: MIRROR_POSE
     }
   };
 }

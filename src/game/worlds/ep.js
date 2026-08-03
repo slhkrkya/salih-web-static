@@ -20,9 +20,10 @@
  * ==========================================================================
  *   import { buildWorldEP } from "./worlds/ep.js";
  *   const { map, labels, spawnX, spawnY, residentDecor, segments, finishX,
- *           exitX } = buildWorldEP();
+ *           finishY, exitX } = buildWorldEP();
  *     residentDecor : [{x,y}] — yol kenarinda sabit "kurtarilan sakin" noktalari
  *     finishX       : bu x'e ulasilinca 5 s'lik epilog kapanisi baslar
+ *     finishY       : cizginin oturdugu zemin y'si (boot.js drawFinishLine)
  * ========================================================================== */
 
 import { TILE } from "../scale.js";
@@ -68,7 +69,6 @@ export function buildWorldEP() {
   for (let i = 0; i < 6; i++) {
     residentDecor.push({ x: (sRes.x0 + 4 + i * 6) * TILE, y: lb.curFloorY * TILE - 10 });
   }
-  lb.label(lb.cursor, "Bitiş çizgisi: dokun ve oyunu bitir", "Finish line: touch it to end the game");
   padTo(lb, cStart, 140);
   segments.push({ id: "c7", tileCount: lb.cursor - cStart, topSpeedTilePerSec: TOP_SPEED_TILE_PER_SEC });
 
@@ -80,6 +80,17 @@ export function buildWorldEP() {
    * eklenir — kamera bu alana dogru kayar, oyuncu bu kismi hic
    * "oynamaz" (glif/tehlike yok, sadece sahne). */
   const finishX = lb.cursor * TILE;
+  const finishY = lb.curFloorY * TILE;
+  /* TABELA CIZGININ YANINDA DURMALI (oyun testiyle raporlandi: "en sonda
+   * bitis cizgisi gorunmuyor"). Eskiden bu etiket `padTo`'dan ONCE, yani
+   * C7'nin 40. karosunda konuyordu — gercek bitis cizgisinden 100 tile
+   * (1600 px) once. Oyuncu yaziyi okuyor, hicbir sey gormuyor, sonra bombos
+   * bir duzlukte oyun kendiliginden bitiyordu. Etiket artik finishX yakalandiktan
+   * SONRA konur (tile butcesine girmez, padTo'dan sonradir) ve boot.js ayrica
+   * gorunur bir damali cizgi cizer. */
+  /* 20 tile geride: metin (36 karakter = 251 px) cizginin direğiyle YATAY
+   * olarak cakismasin, ama okunacak kadar yakin dursun. */
+  lb.label(lb.cursor - 20, "Bitiş çizgisi: dokun ve oyunu bitir", "Finish line: touch it to end the game");
   lb.pushFlat(60);
 
   const { map, labels } = lb.build();
@@ -90,6 +101,7 @@ export function buildWorldEP() {
     residentDecor,
     segments,
     finishX,
+    finishY,
     exitX: finishX
   };
 }

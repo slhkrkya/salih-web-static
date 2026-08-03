@@ -25,7 +25,7 @@
  *                                     "telegraph"|"window"|"obey"|"drain"|
  *                                     "verb-rewrite"|"merge"|"shoot"|
  *                                     "hit"|"block"|"hunter"|
- *                                     "crack"|"collapse"
+ *                                     "crack"|"collapse"|"dash"|"wall"
  *   audio.startDrone()             -> surekli alcak drone baslar (idempotent)
  *   audio.stopDrone()
  *   audio.setDroneRate(rateInt)    -> HER karede degil, rate degistiginde cagir
@@ -117,6 +117,11 @@ export function createAudio() {
      * uzun bir ses — kulak "daha zamanim var" ile "gitti"yi ayirt edebilmeli. */
     "crack": () => beep(1200, 45, { wave: "square", slideTo: 950, gain: 0.12 }),
     "collapse": () => beep(360, 200, { wave: "sawtooth", slideTo: 70, gain: 0.2 }),
+    /* SON SINAV / AYNA: uzerine kosu YUKSELEN ve uzun (geliyor), duvar orme
+     * ise KISA ve alcak bir tok ses (bir sey KONDU). Ikisi de kulakla
+     * ayirt edilebilmeli — kalip adini okumaya vakit olmayabilir. */
+    "dash": () => beep(150, 240, { wave: "sawtooth", slideTo: 560, gain: 0.18 }),
+    "wall": () => beep(320, 90, { wave: "square", slideTo: 190, gain: 0.16 }),
     "merge": () => chord([392, 493.88, 587.33], 900, 0.18)   /* G-B-D temiz akor, SIFIR detune */
   };
 

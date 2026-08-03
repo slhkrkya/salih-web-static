@@ -2,10 +2,13 @@
  * game/worlds/w6.js — W6 "YOKSAY / OVERRIDE" (tepe hiz 13,16 tile/s)
  * ==========================================================================
  *
- * Kaynak: docs/oyun-v0-kapsam.md §5.4. 2 segment (A6, R1), toplam 320
- * path-tile, 44 s traversal (Defter A). Boss YOKSAY Faz 1 (35 s) A6 sonunda,
- * arenanin kendisi A6'nin PADDING'idir (W1 G1/KOKLAYICI ile ayni kural —
- * boss alani ayri bir tile-butce satiri degil, segmentin kalan kismidir).
+ * Kaynak: docs/oyun-v0-kapsam.md §5.4. Kitapta 2 segment (A6, R1) ve 320
+ * path-tile vardi; v0 buna UCUNCU bir segment ekler: X1 "SON SINAV" (200
+ * tile), YOKSAY'dan SONRA gelen ve oyunun en zor kismi olan bolum (bkz.
+ * asagidaki X1 basligi). Toplam 520 path-tile. Boss YOKSAY A6 sonunda, boss
+ * AYNA X1 sonunda; her iki arena da kendi segmentinin PADDING'idir (W1
+ * G1/KOKLAYICI ile ayni kural — boss alani ayri bir tile-butce satiri degil,
+ * segmentin kalan kismidir).
  *
  * SADELESTIRME NOTU (rapor icin acikca isaretli):
  *  - "3 dünya katman katman geri açılır" (A6 girisi) SAF GORSEL bir yankı
@@ -21,9 +24,11 @@
  * ==========================================================================
  *   import { buildWorld6 } from "./worlds/w6.js";
  *   const { map, labels, spawnX, spawnY, enemySpawns, hazards, segments,
- *           bossTriggerX, mergeTriggerX, exitX } = buildWorld6();
+ *           bossTriggerX, x1BossTriggerX, mergeTriggerX, exitX } = buildWorld6();
  *     hazards.hotChannels : [{x0,x1}] — 40 kare icinde x1 gecilmezse REVERT
+ *     hazards.shellRain   : [{x0,x1,groundY,cols[]}] — gokten mermi seridi
  *     bossTriggerX         : bu x'e ulasilinca boot.js YOKSAY'i baslatir
+ *     x1BossTriggerX       : bu x'e ulasilinca boot.js AYNA'yi baslatir
  *     mergeTriggerX        : R1 sonu — MERGE burada TEKLIF edilir (== exitX)
  * ========================================================================== */
 
@@ -45,6 +50,10 @@ export function buildWorld6() {
   const enemySpawns = [];
   const segments = [];
   const hotChannels = [];
+  /* SON SINAV'in gokten mermi yagan seridi. SICAK KANAL ile ayni desende
+   * kurulur (tile bayragi DEGIL, x-araligi + boot.js sayaci — tilemap.js
+   * DONDURULMUS, yeni bayrak eklenmez). */
+  const shellRain = [];
   /* ARA COMMIT TASLARI (bulunan gercek adalet sorunu): A6 TEK bir 220 tile'lik
    * segment ve commit taslari yalnizca SEGMENT SINIRLARINDA ilerliyordu — yani
    * bu 3520 px'lik bolumun tamaminda tek bir kayit noktasi vardi (bolumun
@@ -133,8 +142,111 @@ export function buildWorld6() {
   padTo(lb, aStart, 220);
   segments.push({ id: "a6", tileCount: lb.cursor - aStart, topSpeedTilePerSec: TOP_SPEED_TILE_PER_SEC });
 
+  /* ==========================================================================
+   * X1 — SON SINAV (YOKSAY'dan SONRA gelen en zor bolum)
+   * ==========================================================================
+   * Eskiden YOKSAY'in ardindan dogrudan R1'in duz kosuSu ve MERGE geliyordu:
+   * oyunun EN ZOR ani ortasindaydi, sonu ise bir yurutme bandiydi. Bu segment
+   * o bosluga oturur ve tek bir ilkeyle kurulur — YENI mekanik OGRETMEZ,
+   * ogretilmis olan HER SEYI ust uste bindirir:
+   *
+   *   1. BUZ + SAHTE ZEMİN : buz durmayi zorlastirir, sahte karo durani cezalandirir.
+   *                          Iki yuzey ayni cumleyi soyler: KOSMAYA DEVAM ET.
+   *   2. ÇİFT DÜĞÜM        : iki radar, iki yandan avci. Kacmak degil VURMAK.
+   *   3. KIVILCIM YAĞMURU  : gokten dusen mermi seridi (boot.js shellRain).
+   *                          Ilk kez bir "patron saldirisi" parkurun ICINDE.
+   *   4. SICAK ŞERIT       : ustune, durmayi tamamen yasaklayan sayac.
+   *   5. AVCI + Q KÖPRÜSÜ  : ziplanmaz bosluk, ustune bir avci. Iki fiili AYNI
+   *                          anda kullanmak zorunda kaldigin tek yer.
+   *   6. AYNA arenasi      : segmentin PADDING'i (A6/G1 ile ayni kural).
+   *
+   * Her tehlike kumesinin ardinda bir commit tasi var: bedel o tehlikeyi
+   * tekrar denemek, koridoru bastan yurumek degil.
+   * ========================================================================== */
+  const xStart = lb.cursor;
+  lb.label(lb.cursor, "Son sınav: hepsi aynı anda", "Final exam: all of it at once");
+  lb.pushFlat(10);
+
+  /* --- 1. BUZ + SAHTE ZEMİN -------------------------------------------- */
+  lb.label(lb.cursor, "Buzun sonunda sahte zemin var", "Fake ground waits at the end of the ice", "hazard");
+  const sXIce = lb.pushFlat(12);
+  for (let x = sXIce.x0; x < sXIce.x1; x++) lb.put(x, lb.curFloorY, "_");
+  /* Karolar IKISER (C1'de bulunan gercek hata): tek karo cokunce kalan 16 px'lik
+   * delige 8 px'lik govde 3 px cikinti toleransiyla neredeyse hic dusmuyordu.
+   * Ikiser karo = 32 px gercek delik. Tepe hizda (3,51 px/f) 32 px ~9 karede
+   * gecilir, catlak telegrafi 26 kare — KOSAN oyuncu guvende, ceza duranin. */
+  const sXFake = lb.pushFlat(22);
+  for (let i = 0; i < 3; i++) {
+    const fx = sXFake.x0 + 3 + i * 7;
+    lb.put(fx, lb.curFloorY, "~");
+    lb.put(fx + 1, lb.curFloorY, "~");
+  }
+  lb.pushFlat(6, { gap: true });          /* 96 px — tepe hizda ziplanir, frende ziplanmaz */
+  const sXAfterIce = lb.pushFlat(10);
+  commitStones.push((sXAfterIce.x0 + 1) * TILE);
+
+  /* --- 2. ÇİFT DÜĞÜM koridoru ------------------------------------------ */
+  lb.label(lb.cursor, "İki radar: avcılar iki yandan gelir", "Two radars: hunters from both sides", "shoot");
+  const sXNodes = lb.pushFlat(24);
+  enemySpawns.push({ type: "node", x: (sXNodes.x0 + 6) * TILE, y: lb.curFloorY * TILE - 14, opts: { face: 1 } });
+  enemySpawns.push({ type: "node", x: (sXNodes.x0 + 18) * TILE, y: lb.curFloorY * TILE - 14, opts: { face: -1 } });
+  const sXAfterNodes = lb.pushFlat(8);
+  commitStones.push((sXAfterNodes.x0 + 1) * TILE);
+
+  /* --- 3. KIVILCIM YAĞMURU koridoru ------------------------------------ */
+  lb.label(lb.cursor, "Gökten mermi yağıyor: işarete bak", "Shells rain down: read the marks", "hazard");
+  const sXRain = lb.pushFlat(26);
+  shellRain.push({
+    x0: sXRain.x0 * TILE,
+    x1: sXRain.x1 * TILE,
+    groundY: lb.curFloorY * TILE,
+    /* Bes sutun, 5 tile arayla. Her dalgada sutunlarin YARISI duser (boot.js
+     * donusumlu secer), yani her zaman gecilecek bir yol vardir — ezber degil
+     * OKUMA sinavi. Dusen mermi havada VURULABILIR (boltHitTest "shot-down"). */
+    cols: [3, 8, 13, 18, 23].map((i) => (sXRain.x0 + i) * TILE + TILE * 0.5)
+  });
+  const sXAfterRain = lb.pushFlat(8);
+  commitStones.push((sXAfterRain.x0 + 1) * TILE);
+
+  /* --- 4. SICAK ŞERIT (ayni 6 tile genislik kisiti) -------------------- */
+  const sHot3 = lb.pushFlat(6);
+  hotChannels.push({ x0: sHot3.x0 * TILE, x1: sHot3.x1 * TILE });
+  lb.label(sHot3.x0, "Şerit yine sıcak", "The lane is hot again", "hazard");
+  const sXAfterHot = lb.pushFlat(10);
+  commitStones.push((sXAfterHot.x0 + 1) * TILE);
+
+  /* --- 5. AVCI + Q KÖPRÜSÜ (iki fiil AYNI anda) ------------------------ */
+  lb.label(lb.cursor, "Önce avcıyı vur, sonra zemin döşe", "Shoot the hunter first, then lay ground", "ground");
+  /* 6 -> 8 tile (bot olcumu): radar duzlugun ortasindaysa kilit tam boslugun
+   * KENARINDA tamamlaniyor ve avci, oyuncu koprüyu kurarken sirtinda beliriyor —
+   * etiketin soyledigi sira ("once avciyi vur, sonra zemin dose") FIZIKSEL
+   * OLARAK uygulanamiyordu. Radar duzlugun BASINA alindi ve iki tile daha
+   * nefes verildi: avciyi vurmak icin bes tile'lik gercek bir pencere var.
+   * Bosluk 9 tile'da KALIR — zorluk mesafeden degil sıradan geliyor. */
+  const sXBridge = lb.pushFlat(8);
+  enemySpawns.push({ type: "node", x: (sXBridge.x0 + 1) * TILE, y: lb.curFloorY * TILE - 14, opts: { face: 1 } });
+  /* 9 tile = 144 px. Ziplama erisimi ~115 px oldugu icin ZIPLANAMAZ; tek dolu
+   * metre (5 karo = 80 px) + ucundan ziplama (64 px kalan) ile gecilir. Avci
+   * ise koprüyu kurarken yururken gelir: once onu vurup 90 karelik pencereyi
+   * acmak, sonra kopruyu kurmak gerekir. Sirasi yanlis olan duser. */
+  lb.pushFlat(9, { gap: true });
+  const sXAfterBridge = lb.pushFlat(12);
+  commitStones.push((sXAfterBridge.x0 + 1) * TILE);
+
+  /* --- 6. AYNA arenasi = X1'in PADDING'i (A6/G1 ile ayni kural) -------- */
+  const x1BossTriggerX = lb.cursor * TILE;
+  padTo(lb, xStart, 200);
+  segments.push({ id: "x1", tileCount: lb.cursor - xStart, topSpeedTilePerSec: TOP_SPEED_TILE_PER_SEC });
+
   /* ================================================= R1 — Ara Koşu */
   const rStart = lb.cursor;
+  /* AYNA arenasindan CIKAR CIKMAZ bir tas. Segment sinirlarindan turetilen
+   * commit noktalari (boot.js segmentBoundaries) spawn duzlugu kadar KAYIKTIR
+   * ve R1'in turetilmis siniri arenanin ICINE dusuyordu — dovus sirasinda
+   * ilerleyen oyuncu kayit noktasini arenanin icine tasiyor, olunce dovusun
+   * ortasinda diriliyordu. Tas artik ACIKCA arenanin disina konur; boot.js de
+   * arena bandina dusen turetilmis sinirlari ayiklar. */
+  commitStones.push((rStart + 1) * TILE);
   lb.label(lb.cursor, "Düz koş, bitiş öteki uçta", "Just run, the end is at the far side");
   const sIns1 = lb.pushFlat(20);
   enemySpawns.push({ type: "instruction", x: (sIns1.x0 + 12) * TILE, y: lb.curFloorY * TILE - 4, opts: { cmd: "STOP", face: 1 } });
@@ -173,14 +285,25 @@ export function buildWorld6() {
     if (runway < COMMIT_RUNWAY) {
       throw new Error(`worlds/w6: commit tasi ${t}. tile'da hizlanma mesafesi ${runway} < ${COMMIT_RUNWAY} tile`);
     }
+    /* ...ve SICAK ŞERIT'in ICINDE olmasin: oraya dogan oyuncu 40 karelik
+     * sayaci hep gecikmis baslatir, cikamazsa ayni tasa tekrar dogar —
+     * "bosluga dogma" ile ayni sinif, sessiz bir kilitlenme. X1 uc yeni
+     * serit ve dort yeni tas ekledigi icin bu kural artik bedavaya
+     * dogrulanabilir hale geldi. */
+    for (const z of hotChannels) {
+      if (cx >= z.x0 - TILE && cx < z.x1) {
+        throw new Error(`worlds/w6: commit tasi ${t}. tile SICAK ŞERIT icinde — cikilamaz dongu`);
+      }
+    }
   }
 
   return {
     map, labels, spawnX, spawnY, enemySpawns,
-    hazards: { hotChannels },
+    hazards: { hotChannels, shellRain },
     commitStones,
     segments,
     bossTriggerX,
+    x1BossTriggerX,
     mergeTriggerX,
     exitX: mergeTriggerX
   };

@@ -13,7 +13,10 @@ export default {
     pickStage: "PICK A STAGE", locked: "LOCKED", cancel: "CANCEL",
     controls: "CONTROLS", pips: "SKILLS",
     boss: "BOSS", shootAt: "SHOOT IT", shielded: "SHIELD IS UP",
-    atk: { rain: "SHELL RAIN", volley: "FLAT VOLLEY", summon: "CALLING A HUNTER" },
+    atk: {
+      rain: "SHELL RAIN", volley: "FLAT VOLLEY", summon: "CALLING A HUNTER",
+      aimed: "TAKING AIM", wall: "BUILDING A WALL", dash: "CHARGING AT YOU", net: "SKY NET"
+    },
     keyAction: "J", keyGround: "Q", keyJump: "SPACE",
     stageJumpNote: "You start at the beginning of that stage.",
     confirmKeys: "ACTION confirms, JUMP cancels.",
@@ -34,7 +37,7 @@ export default {
   worldNames: {
     w0: "1 — TUTORIAL", w1: "2 — THE CHANNEL", w6: "3 — OVERRIDE", ep: "4 — HIGHWAY"
   },
-  bossNames: { sniffer: "SNIFFER", override: "OVERRIDE" },
+  bossNames: { sniffer: "SNIFFER", override: "OVERRIDE", mirror: "MIRROR" },
   menu: {
     m1: "A small platformer, four stages.",
     m2: "Goal: reach the end, keep the OBEY bar low.",
@@ -88,11 +91,19 @@ export default {
       ]
     },
     override: {
-      line: "Final boss. Shoot when its shield drops.",
+      line: "Shoot when its shield drops. Not the end.",
       hints: [
         "The name of its next attack is written above.",
         "In a shell rain, stand on the unmarked gap.",
         "Jump the volley, or lay a tile for cover."
+      ]
+    },
+    mirror: {
+      line: "Final test. This one fights like you.",
+      hints: [
+        "Read the attack name written above it.",
+        "If it builds a wall, shoot the wall down.",
+        "If it charges, jump. Do not stand still."
       ]
     }
   },
@@ -116,7 +127,8 @@ export default {
     { id: "topk", name: "CHAIN", locked: "?", seal: null }
   ],
   final: [
-    "Boss down. The road is open.",
+    "Boss down. But the final test starts now.",
+    "You beat the mirror too. The road is open.",
     "Press ACTION to move to the last stage.",
     "Final stretch. From here it is just running.",
     "You finished it. Thanks for playing."

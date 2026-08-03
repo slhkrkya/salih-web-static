@@ -7,8 +7,9 @@
  * monitore tiklanmadan hic inmez) — ayri GAME_TEXT modulu, site `lang`
  * durumunu `bridge.getLang()` ile okur.
  *
- * v0 FARKI (kitaptan): kural 2 `n !== 84` degil `n !== 55` olur (§12-5,
- * kesilen bloklar + `lies`'in artik sayilmasi). Diger 6 kural AYNEN.
+ * v0 FARKI (kitaptan): kural 2 `n !== 84` degil `n !== 57` olur (§12-5,
+ * kesilen bloklar + `lies`'in artik sayilmasi + SON SINAV'in iki satiri).
+ * Diger 6 kural AYNEN.
  *
  * ==========================================================================
  * ARAYUZ SOZLESMESI
@@ -28,7 +29,16 @@
 import TR from "./text/tr.js";
 import EN from "./text/en.js";
 
-export const PROSE_TARGET_V0 = 55;
+/* 55 -> 57: SON SINAV (X1) bolumu iki YENI prose satiri getirdi ve baska
+ * hicbir sey getirmedi — `bosses.mirror.line` (ucuncu patron AYNA'nin dogus
+ * repligi) ve `final` dizisinin besinci girisi (AYNA yenildiginde okunan
+ * satir). Butce bilincli olarak KUCUK tutuluyor: patronun uc `hints` satiri,
+ * yedi `lexicon.atk` adi ve X1'in ALTI parkur tabelasi bu sayima GIRMEZ
+ * (hints/lexicon zaten sayilmiyor, parkur tabelalari GAME_TEXT'te degil
+ * worlds/w6.js'te yasiyor). Sayaci "guncelledim" diye susturmak yerine yeni
+ * degeri burada gerekcesiyle yaziyoruz — invaryant canli kalsin, bir dahaki
+ * kazara metin sismesini yine yakalasin. */
+export const PROSE_TARGET_V0 = 57;
 
 function flatten(obj, prefix, out) {
   out = out || {};
@@ -63,11 +73,11 @@ function countProse(t) {
   n += t.worlds.length;                                                /* 4 sub */
   n += t.worlds.filter((w) => w.teaser).length + (t.midTeaser ? 1 : 0); /* 4 teaser */
   for (const key in t.scenes) n += t.scenes[key].length;               /* 7 */
-  for (const key in t.bosses) if (t.bosses[key].line) n++;             /* 2 */
+  for (const key in t.bosses) if (t.bosses[key].line) n++;             /* 3 */
   n += t.revert.length;                                                /* 3 */
   n += Object.keys(t.verbHints).length;                                /* 2 */
   n += t.pips.filter((p) => p.seal).length;                            /* 3 */
-  n += t.final.length;                                                 /* 4 */
+  n += t.final.length;                                                 /* 5 */
   n += Object.keys(t.a11y).length;                                     /* 2 */
   n += Object.keys(t.gate).length;                                     /* 2 */
   n += t.lies.length;                                                  /* 5 */

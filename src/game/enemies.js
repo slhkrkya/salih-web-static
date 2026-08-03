@@ -46,8 +46,10 @@
  *   spawnHunter(pool, x, y)              -> AVCI (FLAG_HAZARD, 2 can)
  *   countHunters(pool) / clearHunters(pool)
  *
- *   update(pool, dt, playerBody, map, onObey, onSpawnToken) -> void
- *     - onObey() : telegraf susturulmadan bitince (rate.obey icin)
+ *   update(pool, dt, playerBody, map, onObey, onSpawnToken, onBoltSolid) -> void
+ *     - onObey()          : telegraf susturulmadan bitince (rate.obey icin)
+ *     - onBoltSolid(x, y) : oyuncu mermisi KATI bir karoya carpti (AYNA'nin
+ *                           ordugu duvarlarin kirilabilmesi icin)
  *
  *   boltHitTest(pool, onEvent) -> void
  *     - Oyuncu mermilerini TUM hedeflere karsi cozer. onEvent(kind, x, y):
@@ -311,11 +313,20 @@ function updateNode(pool, id, body, onObey) {
 }
 
 /* --------------------------------------------------- ATIS SISTEMI: guncelleme */
-function updateBolt(pool, id, map) {
+function updateBolt(pool, id, map, onSolid) {
   pool.x[id] += pool.vx[id];
   pool.y[id] += pool.vy[id];
   pool.timer[id]--;
-  if (pool.timer[id] <= 0 || solidAt(map, pool.x[id], pool.y[id])) pool.free(id);
+  if (solidAt(map, pool.x[id], pool.y[id])) {
+    /* AYNA'nin ordugu duvarlar KIRILABILIR olsun diye: mermi kati bir seye
+     * carptiginda cagiran haberdar edilir ve o karonun bir "arena duvari"
+     * olup olmadigina KENDISI karar verir (bkz. arenawalls.breakAt). Dunyanin
+     * normal zemininde bu geri cagri hicbir sey yapmaz. */
+    if (onSolid) onSolid(pool.x[id], pool.y[id]);
+    pool.free(id);
+    return;
+  }
+  if (pool.timer[id] <= 0) pool.free(id);
 }
 
 function updateShard(pool, id, map) {
@@ -378,7 +389,7 @@ function updateBell(pool, id) {
  * rate.pickOB() cagirani boot.js'te secilir); onHazardHit(id) oyuncu-varlik
  * cakismasi TESTININ boot.js'te yapilmasini bekler (bu modul temas testi
  * yapmaz — govde/tilemap koordinatlarina bakmaz, yalniz durum makinesi). */
-export function update(pool, dt, body, map, onObey, onSpawnToken) {
+export function update(pool, dt, body, map, onObey, onSpawnToken, onBoltSolid) {
   pool.forEachActive((id) => {
     const t = pool.type[id];
     if (t === TYPE.INSTRUCTION) updateInstruction(pool, id, body, onObey);
@@ -396,7 +407,7 @@ export function update(pool, dt, body, map, onObey, onSpawnToken) {
     else if (t === TYPE.NODE) updateNode(pool, id, body, onObey);
     else if (t === TYPE.BELL) updateBell(pool, id);
     else if (t === TYPE.TOKEN) updateToken(pool, id, map);
-    else if (t === TYPE.BOLT) updateBolt(pool, id, map);
+    else if (t === TYPE.BOLT) updateBolt(pool, id, map, onBoltSolid);
     else if (t === TYPE.SHARD) updateShard(pool, id, map);
     else if (t === TYPE.HUNTER) updateHunter(pool, id, body);
   });
