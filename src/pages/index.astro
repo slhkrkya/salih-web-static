@@ -57,6 +57,11 @@ const personSchema = {
 
   <script type="application/ld+json" set:html={JSON.stringify(personSchema)}></script>
 
+  <!-- Gizli oyun girisi (§10.1 karar C). DIKKAT: burada `is:inline` KULLANILMAZ —
+       Rollup'in bundle edip `import()`'i ayri chunk'a bolmesi gerekiyor.
+       Asagidaki buyuk `is:inline` script'e dokunulmaz. -->
+  <script>import "../game/launcher.js";</script>
+
 <style is:global>
 :root {
   --bg: #FFF1E8; --surface: #FFFFFF; --surface-soft: #F6E4D8;
@@ -233,6 +238,9 @@ dialog:focus-visible { outline: none; }
   font-family: var(--font-mono);
   font-size: 0.82rem;
   z-index: 4;
+  /* KOSULSUZ: balon tamamen dekoratif. Eskiden yalniz .hidden-bubble ile geliyordu
+     ve ilk 4,5 saniye monitor hotspot'unu hit-test'te oruyordu (§11.4 / O10). */
+  pointer-events: none;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 .speech-bubble::after {
@@ -253,13 +261,40 @@ dialog:focus-visible { outline: none; }
   .speech-bubble { transition: none; }
 }
 
+/* Canvas artik butonun ICINDE degil (ic ice buton gecersiz HTML idi, §11.1).
+   Kanvas + avatar tetikleyicisi + monitor hotspot'u KARDES. Tab sirasi: avatar -> monitor. */
+.scene-frame { position: relative; }
 .avatar-trigger {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   cursor: pointer;
   background: none;
   border: 0;
   padding: 0;
-  display: block;
-  width: 100%;
+}
+/* Yuzdeler drawScene grid'inden birebir gelir: monX=8, monY=10, monW=12, monH=8
+   grid 56 x 32  ->  8/56 = 14.2857%, 10/32 = 31.25%, 12/56 = 21.4286%, 8/32 = 25%.
+   min-width/height: mobilde 44 px dokunma hedefi garantisi. */
+.monitor-hotspot {
+  position: absolute;
+  z-index: 5;                 /* balon 4, scene-controls 3, avatar 1 */
+  left: 14.2857%; top: 31.25%; width: 21.4286%; height: 25%;
+  min-width: 44px; min-height: 44px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.monitor-hotspot:hover,
+.monitor-hotspot:focus-visible { outline: 3px dashed var(--accent); outline-offset: 2px; }
+/* min-height ilk boyamada yer ayirir -> caption metni sonradan gelse de CLS = 0 */
+.monitor-caption {
+  min-height: 1.4em;
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-soft);
 }
 
 /* ---------- ROUTE COMPASS / NAV ---------- */
@@ -871,9 +906,12 @@ footer.site-footer {
         <button type="button" class="theme-btn" id="theme-toggle-btn" aria-label="Tema değiştir">☀</button>
       </div>
       <div class="speech-bubble" id="speech-bubble" data-i18n="hero.bubble">Merhaba, ben Salih. Aşağıda ne yaptığıma bakabilirsin.</div>
-      <button type="button" class="avatar-trigger" id="hero-avatar-btn" data-i18n-aria="nav.characterButtonAriaLabel" aria-label="Karakter sayfasını aç" aria-haspopup="dialog">
+      <div class="scene-frame">
         <canvas class="pixel-canvas" id="scene-canvas" width="1" height="1" aria-hidden="true"></canvas>
-      </button>
+        <button type="button" class="avatar-trigger" id="hero-avatar-btn" data-i18n-aria="nav.characterButtonAriaLabel" aria-label="Karakter sayfasını aç" aria-haspopup="dialog"></button>
+        <button type="button" class="monitor-hotspot" id="monitor-hotspot" data-i18n-aria="game.hotspotAriaLabel" aria-label="Masadaki monitöre bak" aria-haspopup="dialog"></button>
+      </div>
+      <p class="monitor-caption" id="monitor-caption">Monitör açık kalmış.</p>
     </div>
   </div>
 </header>
@@ -1053,6 +1091,12 @@ var content = {
       "themeToggleToLight": "Aydınlık temaya geç"
     },
     "common": { "newTabHint": "(yeni sekmede açılır)" },
+    "game": {
+      "hotspotAriaLabel": "Masadaki monitöre bak",
+      "captionNoSave": "Monitör açık kalmış.",
+      "captionProgress": "{label} {part}/{total}",
+      "captionFinished": "Geçmiş birleştirildi."
+    },
     "nav": {
       "heading": "Rota Pusulası",
       "items": {
@@ -1366,6 +1410,12 @@ var content = {
       "themeToggleToLight": "Switch to light theme"
     },
     "common": { "newTabHint": "(opens in new tab)" },
+    "game": {
+      "hotspotAriaLabel": "Look at the monitor on the desk",
+      "captionNoSave": "The monitor is still on.",
+      "captionProgress": "{label} {part}/{total}",
+      "captionFinished": "The history is merged."
+    },
     "nav": {
       "heading": "Route Compass",
       "items": {
@@ -1652,8 +1702,35 @@ var content = {
 /* ---------------- helpers ---------------- */
 var i18nRefs = [];
 var currentLang = "tr";
-var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var mqReduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+var mqDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+var reduceMotion = mqReduceMotion.matches;
 var scenePaused = false;
+
+/* Sahne duraklatmasinin TEK sahiplenici modeli (§11.3 / O26).
+   updateScenePauseState yalniz dialog/cards yazar, HeroBridge yalniz game yazar.
+   Eskiden deger dialog/kart durumundan yeniden hesaplaniyordu: overlay acikken
+   tetiklenen bir dialog "close" olayi scenePaused'i false'a cevirip hero
+   dongusunu oyunun butcesine geri sokuyordu. */
+var sceneOwners = { dialog: false, cards: false, game: false };
+function applyScenePause() {
+  scenePaused = sceneOwners.dialog || sceneOwners.cards || sceneOwners.game;
+}
+
+/* Kopru dinleyicileri (§10.8) */
+var langListeners = [];
+var themeListeners = [];
+var rmListeners = [];
+function notifyListeners(list, arg) {
+  for (var li = 0; li < list.length; li++) {
+    try { list[li](arg); } catch (e) {}
+  }
+}
+
+/* Oyunun hero sahnesine yazdigi durum (§11.5) */
+var monitorState = null;
+var monitorHover = false;
+var sceneHandle = null;
 
 function get(obj, path) {
   var parts = path.split(".");
@@ -1690,13 +1767,30 @@ function makeEl(tag, className, text) {
   return e;
 }
 
+/* cssVar CACHE'LENIR (§11.2-2). Eskiden drawScene her karede 2 kez cagiriyordu
+   ve cssVar = getComputedStyle().getPropertyValue() -> saniyede 120 ZORUNLU style
+   recalc, tam da overlay'in DOM'u mutasyona ugrattigi anda. Simdi 0.
+   Gecerlilik: cache yalniz data-theme mutasyonu ve prefers-color-scheme
+   degisiminde bosaltilir; palet baska hicbir girdiden turemez. */
+var cssVarCache = null;
+var themeDarkCache = null;
+function invalidateThemeCache() { cssVarCache = null; themeDarkCache = null; }
 function themeIsDark() {
+  if (themeDarkCache !== null) return themeDarkCache;
   var attr = document.documentElement.getAttribute("data-theme");
-  if (attr === "dark") return true;
-  if (attr === "light") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (attr === "dark") themeDarkCache = true;
+  else if (attr === "light") themeDarkCache = false;
+  else themeDarkCache = mqDarkScheme.matches;
+  return themeDarkCache;
 }
-function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function cssVar(name) {
+  if (cssVarCache === null) cssVarCache = {};
+  var hit = cssVarCache[name];
+  if (hit !== undefined) return hit;
+  var val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  cssVarCache[name] = val;
+  return val;
+}
 function px(ctx, x, y, color) { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1); }
 function makeCanvas(id, gridW, gridH, cell) {
   var canvas = document.getElementById(id);
@@ -1829,17 +1923,42 @@ function drawScene(scene, t) {
   ctx.fillRect(monX, monY, monW, 1);
   ctx.fillRect(monX, monY, 1, monH);
   var glowPhase = reduceMotion ? 1 : (Math.sin(t / 700) + 1) / 2;
-  var screenColor = dark ? "#0A0E1C" : "#DDEBFF";
+  /* ===== MONITOR EKRANI — HER IKI TEMADA (§11.5 / O15) =====
+     Eskiden ekranin BUTUN icerigi `if (!dark)` icindeydi: koyu temada monitor duz
+     bir dikdortgendi ve 45 dakikalik icerigin tek girisi kesfedilemezdi. Kurgu
+     zaten buna hazir: figur yatakta uyumaya devam eder, MONITOR UYANIR. */
+  var mstate = monitorState;
+  var mFinished = !!(mstate && mstate.finished);
+  var screenColor = mFinished
+    ? (dark ? "#10321F" : "#CFF3DD")               /* bitmis: sabit led isigi */
+    : (dark ? "#0A0E1C" : "#DDEBFF");
   ctx.fillStyle = screenColor;
   ctx.fillRect(monX + 1, monY + 1, monW - 2, monH - 2);
-  if (!dark) {
+
+  if (mstate) {
+    /* Kalici iz: 3 kolon x 5 satir pip kafesi, FONT YOK. "V6 2/3" 3x5 mini fontla
+       23 px isterdi; ic ekran yalnizca monW-2 = 10 px genis. 15 hucre:
+       8 dunya + 6 pip + 1 bitis. Metin karsiligi #monitor-caption'da yazili. */
+    var gx = monX + 2, gy = monY + 2;
+    for (var pcol = 0; pcol < 3; pcol++) {
+      for (var prow = 0; prow < 5; prow++) {
+        var pidx = pcol * 5 + prow;
+        if (!((mstate.mask >> pidx) & 1)) continue;
+        ctx.fillStyle = (pidx === 14) ? "#38E27C" : led;
+        ctx.globalAlpha = (reduceMotion || mFinished) ? 1 : (0.55 + glowPhase * 0.45);
+        ctx.fillRect(gx + pcol * 3, gy + prow, 1, 1);
+        ctx.globalAlpha = 1;
+      }
+    }
+  } else {
+    /* Kayit yok: bekleme imleci + led nabzi (her iki temada) */
     ctx.fillStyle = accent;
-    ctx.globalAlpha = 0.5 + glowPhase * 0.5;
+    ctx.globalAlpha = (dark ? 0.42 : 0.5) + glowPhase * (dark ? 0.38 : 0.5);
     ctx.fillRect(monX + 2, monY + 2, monW - 4, 1);
     ctx.fillRect(monX + 2, monY + 6, 3, 1);
     ctx.globalAlpha = 1;
     ctx.fillStyle = led;
-    ctx.globalAlpha = 0.7;
+    ctx.globalAlpha = dark ? 0.85 : 0.7;
     ctx.fillRect(monX + 2, monY + 4, 6, 1);
     ctx.globalAlpha = 1;
     var cursorOn = reduceMotion ? true : (Math.floor(t / 500) % 2 === 0);
@@ -1847,6 +1966,23 @@ function drawScene(scene, t) {
       ctx.fillStyle = accent;
       ctx.fillRect(monX + 6, monY + 6, 1, 1);
     }
+  }
+
+  /* Karanlikta 1 px led parlama cercevesi — "ekran tek basina uyanir" */
+  if (dark) {
+    ctx.fillStyle = led;
+    ctx.globalAlpha = 0.22 + glowPhase * 0.18;
+    ctx.fillRect(monX - 1, monY - 1, monW + 2, 1);
+    ctx.fillRect(monX - 1, monY + monH, monW + 2, 1);
+    ctx.fillRect(monX - 1, monY, 1, monH);
+    ctx.fillRect(monX + monW, monY, 1, monH);
+    ctx.globalAlpha = 1;
+  }
+  /* Hotspot hover/focus: 1 px accent cerceve (bayrak launcher'dan kopruyle gelir) */
+  if (monitorHover) {
+    ctx.fillStyle = accent;
+    ctx.fillRect(monX - 1, monY - 1, monW + 2, 1);
+    ctx.fillRect(monX - 1, monY + monH, monW + 2, 1);
   }
 
   if (dark) {
@@ -1894,6 +2030,11 @@ function drawScene(scene, t) {
     ctx.fillStyle = led;
     ctx.fillRect(chairX - 2, chairY + 8, 3, 5);
     ctx.fillRect(chairX + 8, chairY + 8, 3, 5);
+    /* Aydinlik temada figurun omzunda 2x2 accent rozet = devir borcu (§11.5) */
+    if (mstate && mstate.debt > 0) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(chairX + 1, chairY + 6, 2, 2);
+    }
   }
 
   ctx.fillStyle = ink;
@@ -1902,24 +2043,55 @@ function drawScene(scene, t) {
   }
 }
 
+/* §11.2 / K6: eskiden rAF ASLA iptal edilmiyordu (`scenePaused` yalnizca zaman
+   damgasini donduruyordu, dongu 60 fps kosmaya devam ediyordu) ve reduceMotion
+   acikken rAF hic kurulmuyordu. Artik {start, stop, redraw}: stop() GERCEK
+   cancelAnimationFrame cagirir, boylece iki rAF dongusu asla ayni anda kosmaz. */
 function initScene() {
   var scene = makeCanvas("scene-canvas", GRID_W, GRID_H, 6);
-  var lastActiveTs = 0;
+  var lastActiveTs = 0, rafId = 0, running = false;
   function frame(ts) {
     if (!scenePaused) lastActiveTs = ts;
     drawScene(scene, lastActiveTs);
-    if (!reduceMotion) requestAnimationFrame(frame);
+    rafId = requestAnimationFrame(frame);
   }
-  if (reduceMotion) {
-    drawScene(scene, 0);
-  } else {
-    requestAnimationFrame(frame);
+  function start() {
+    if (running) return;
+    if (sceneOwners.game) return;   /* oyun sahneyi sahiplenmisken uyandirilmaz */
+    running = true;
+    if (reduceMotion) { drawScene(scene, 0); running = false; return; }
+    rafId = requestAnimationFrame(frame);
   }
-  var mo = new MutationObserver(function () { if (reduceMotion) drawScene(scene, 0); });
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-    if (reduceMotion) drawScene(scene, 0);
+  function stop() { if (rafId) cancelAnimationFrame(rafId); rafId = 0; running = false; }
+  function redraw() { drawScene(scene, lastActiveTs); }
+
+  var mo = new MutationObserver(function () {
+    invalidateThemeCache();
+    refreshThemeButton();
+    redraw();
+    notifyListeners(themeListeners, themeIsDark());
   });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  mqDarkScheme.addEventListener("change", function () {
+    invalidateThemeCache();
+    refreshThemeButton();
+    redraw();
+    notifyListeners(themeListeners, themeIsDark());
+  });
+
+  /* reduceMotion CANLI dinlenir (§11.2-3 / k3). Eskiden bir kez okunuyordu ve
+     bayat kaliyordu. Oyunun kendi dongusu bundan BAGIMSIZ kurulur; reduceMotion
+     yalniz kamera sarsintisi, parlama, parallax ve gecis animasyonlarini kapatir. */
+  mqReduceMotion.addEventListener("change", function (e) {
+    reduceMotion = e.matches;
+    if (reduceMotion) stop(); else start();
+    redraw();
+    notifyListeners(rmListeners, reduceMotion);
+  });
+
+  start();
+  return { start: start, stop: stop, redraw: redraw };
 }
 
 /* ---------------- theme toggle ---------------- */
@@ -1935,12 +2107,17 @@ function initTheme() {
   try { stored = localStorage.getItem("theme"); } catch (e) {}
   if (stored === "dark" || stored === "light") {
     document.documentElement.setAttribute("data-theme", stored);
+    invalidateThemeCache();
   }
   refreshThemeButton();
   document.getElementById("theme-toggle-btn").addEventListener("click", function () {
     var next = themeIsDark() ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     try { localStorage.setItem("theme", next); } catch (e) {}
+    /* Palet/tema cache'i HEMEN bosaltilir; redraw + themeListeners bildirimi
+       initScene'deki data-theme MutationObserver'inda TEK yerden yapilir
+       (cift bildirim oyunu iki kez atlas pisirmeye zorlar). */
+    invalidateThemeCache();
     refreshThemeButton();
   });
 }
@@ -1966,6 +2143,28 @@ function setLanguage(lang, opts) {
   }
   refreshResearchStatValues();
   refreshThemeButton();
+  renderMonitorCaption();
+  notifyListeners(langListeners, lang);
+}
+
+/* §11.5 / O13: caption KAYIT YOKSA DA yazilir -> hero yuksekligi hic degismez,
+   CLS = 0. Metin `content`'ten gelir; ilerleme etiketini (LEXICON + kesir) oyun
+   kendi dilinde ureterek st.label ile verir. */
+function renderMonitorCaption() {
+  var el = document.getElementById("monitor-caption");
+  if (!el) return;
+  var g = get(content[currentLang], "game");
+  if (!g) return;
+  if (monitorState && monitorState.finished) {
+    el.textContent = g.captionFinished;
+  } else if (monitorState && monitorState.label) {
+    el.textContent = String(g.captionProgress)
+      .replace("{label}", monitorState.label)
+      .replace("{part}", monitorState.part)
+      .replace("{total}", monitorState.total);
+  } else {
+    el.textContent = g.captionNoSave;
+  }
 }
 
 function initLangToggle() {
@@ -2043,6 +2242,25 @@ function setActiveSection(id) {
     d.setAttribute("aria-current", d.dataset.target === id ? "true" : "false");
   });
 }
+/* §11.6: overlay acikken scroll/resize listener'lari PARK EDILIR. Mobilde URL bar
+   gizlenmesi ve orientation degisimi resize firlatip computeActive'i tetikliyor;
+   o da butun section'larda getBoundingClientRect() kosturarak oyunun ortasinda
+   tam sayfa layout'u zorluyor. Kapanista yeniden baglanir + bir kez computeActive. */
+var sectionScrollHandler = null, sectionCompute = null, sectionListenersOn = false;
+function parkSectionListeners() {
+  if (!sectionScrollHandler || !sectionListenersOn) return;
+  window.removeEventListener("scroll", sectionScrollHandler);
+  window.removeEventListener("resize", sectionScrollHandler);
+  sectionListenersOn = false;
+}
+function resumeSectionListeners() {
+  if (!sectionScrollHandler || sectionListenersOn) return;
+  window.addEventListener("scroll", sectionScrollHandler, { passive: true });
+  window.addEventListener("resize", sectionScrollHandler, { passive: true });
+  sectionListenersOn = true;
+  if (sectionCompute) sectionCompute();
+}
+
 function initSectionObserver() {
   var sections = SECTION_IDS.map(function (id) { return document.getElementById(id); }).filter(Boolean);
   if (!sections.length) return;
@@ -2072,8 +2290,11 @@ function initSectionObserver() {
     ticking = true;
     requestAnimationFrame(computeActive);
   }
+  sectionScrollHandler = onScroll;
+  sectionCompute = computeActive;
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onScroll, { passive: true });
+  sectionListenersOn = true;
   computeActive();
 }
 
@@ -2566,10 +2787,16 @@ function buildCharacterDialog() {
   });
 }
 
+/* §11.3: yalnizca dialog/cards bayraklarini yazar. `game` bayragini SADECE
+   HeroBridge yazar; scenePaused ikisinin birlesimi olarak applyScenePause'da
+   turetilir. Boylece overlay acikken gelen bir dialog "close" olayi hero
+   dongusunu geri baslatamaz. */
 function updateScenePauseState() {
   var dialog = document.getElementById("character-dialog");
-  var anyCardOpen = Array.prototype.some.call(document.querySelectorAll(".project-card"), function (c) { return c.open; });
-  scenePaused = dialog.open || anyCardOpen;
+  sceneOwners.dialog = !!(dialog && dialog.open);
+  sceneOwners.cards = Array.prototype.some.call(
+    document.querySelectorAll(".project-card"), function (c) { return c.open; });
+  applyScenePause();
 }
 
 /* ---------------- contact ---------------- */
@@ -2666,6 +2893,57 @@ function initSpeechBubble() {
   }
 }
 
+/* ---------------- HeroBridge (§10.8) ----------------
+   Inline IIFE'nin locals'i modulden gorunmez; kopru tek yazili arayuzdur.
+   Launcher bu objeyi `hero:ready` olayindan ONCE de bulabilir (klasik inline
+   script deferred modulden once calisir), yine de olay her zaman firlatilir. */
+function installHeroBridge() {
+  window.HeroBridge = {
+    /* dil */
+    getLang: function () { return currentLang; },
+    setLang: function (l) { if (l === "tr" || l === "en") setLanguage(l); },
+    onLangChange: function (fn) { if (typeof fn === "function") langListeners.push(fn); },
+    /* tema */
+    isDark: function () { return themeIsDark(); },
+    onThemeChange: function (fn) { if (typeof fn === "function") themeListeners.push(fn); },
+    /* sitenin CSS degiskenleri = oyunun palet kaynagi; cache'li okuma */
+    cssVar: function (name) { return cssVar(name); },
+    /* erisilebilirlik */
+    reduceMotion: function () { return reduceMotion; },
+    onReduceMotionChange: function (fn) { if (typeof fn === "function") rmListeners.push(fn); },
+    /* MEVCUT live region yeniden kullanilir; ikinci bir tane YARATILMAZ (O23) */
+    announce: function (msg) {
+      var a = document.getElementById("a11y-announcer");
+      if (a) a.textContent = String(msg == null ? "" : msg);
+    },
+    /* hero sahnesi — tek sahiplenici modeli */
+    stopScene: function () {
+      sceneOwners.game = true;
+      applyScenePause();
+      if (sceneHandle) sceneHandle.stop();
+    },
+    startScene: function () {
+      sceneOwners.game = false;
+      applyScenePause();
+      if (sceneHandle) sceneHandle.start();
+    },
+    /* kalici iz; st = { mask, world, part, total, finished, debt, label } | null */
+    setMonitorState: function (st) {
+      monitorState = st || null;
+      renderMonitorCaption();
+      if (sceneHandle) sceneHandle.redraw();
+    },
+    setHotspotHover: function (v) {
+      monitorHover = !!v;
+      if (sceneHandle) sceneHandle.redraw();
+    },
+    /* §11.6 */
+    parkListeners: function () { parkSectionListeners(); },
+    resumeListeners: function () { resumeSectionListeners(); }
+  };
+  document.dispatchEvent(new CustomEvent("hero:ready"));
+}
+
 /* ---------------- init ---------------- */
 function init() {
   initLangToggle();
@@ -2683,12 +2961,14 @@ function init() {
 
   setLanguage(currentLang, { silent: true });
   applyProjectFilters();
-  initScene();
+  sceneHandle = initScene();
   initTheme();
   initSpeechBubble();
   initSectionObserver();
   initReveal();
   initResearchObserver();
+  renderMonitorCaption();
+  installHeroBridge();
 }
 
 if (document.readyState === "loading") {
