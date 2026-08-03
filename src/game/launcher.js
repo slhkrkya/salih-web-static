@@ -16,7 +16,7 @@
  * ==========================================================================
  */
 
-import { VIEW_W, VIEW_H, pickScale } from "./scale.js";
+import { VIEW_W, VIEW_H, pickScale, displaySize } from "./scale.js";
 
 const DEBUG = !!import.meta.env.DEV || /[?&](fps|debug)\b/.test(location.search);
 /* Sadece DEBUG'da: ?startWorld=6 ile W0-W1'i tekrar oynamadan W6/YOKSAY/MERGE
@@ -43,6 +43,7 @@ const TEXT = {
     pause: "DURAKLAT", resume: "DEVAM", exit: "ÇIKIŞ",
     soundOn: "SES AÇIK", soundOff: "SES KAPALI",
     paused: "DURAKLATILDI — çıkmak için Esc'e bir daha bas.",
+    pausedTouch: "DURAKLATILDI — çıkmak için ÇIKIŞ'a bas.",
     failed: "Oyun yüklenemedi. Bağlantını kontrol edip tekrar dene."
   },
   en: {
@@ -53,6 +54,7 @@ const TEXT = {
     pause: "PAUSE", resume: "RESUME", exit: "EXIT",
     soundOn: "SOUND ON", soundOff: "SOUND OFF",
     paused: "PAUSED — press Esc again to exit.",
+    pausedTouch: "PAUSED — tap EXIT to quit.",
     failed: "The game failed to load. Check your connection and try again."
   }
 };
@@ -60,10 +62,15 @@ const TEXT = {
 const OVERLAY_CSS = `
 #game-overlay{position:fixed;inset:0;z-index:${OVERLAY_Z};background:var(--bg);color:var(--ink);
  display:flex;align-items:center;justify-content:center;overscroll-behavior:none;
+ touch-action:none;-webkit-tap-highlight-color:transparent;
+ -webkit-user-select:none;user-select:none;
  transform-origin:0 0;will-change:transform,opacity;}
 #game-overlay:focus{outline:none;}
 #game-overlay .gs-stage{position:relative;display:flex;align-items:center;justify-content:center;
  touch-action:none;}
+/* [hidden] UA kurali display:flex'e YENILIR (ozgulluk) — portre kapisi acikken
+ * sahne gizlenmis SAYILIYOR ama yer kaplamaya devam ediyordu. */
+#game-overlay .gs-stage[hidden]{display:none;}
 #game-overlay canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
 #game-overlay .gs-chrome{position:absolute;top:0;right:0;display:flex;gap:6px;padding:8px;}
 #game-overlay .gs-chrome button{font-family:var(--font-mono);font-size:.7rem;line-height:1;
@@ -82,6 +89,21 @@ const OVERLAY_CSS = `
  padding:10px 16px;background:var(--surface);color:var(--ink);border:2px solid var(--ink);
  cursor:pointer;}
 #game-overlay .gs-gate-icon{font-size:2rem;line-height:1;}
+/* ==========================================================================
+ * PORTRE YERLESIMI (.gs-narrow) — bkz. applyLayout()
+ * ==========================================================================
+ * Yatayda ekran genis, oyun ortada ve kose kutulari letterbox bosluguna
+ * oturuyor. Dikeyde ise oyun 480x272 oraniyla ekranin ancak ucte birini
+ * kapliyor; mutlak konumlu chrome tepede, durum satiri en altta kalinca
+ * arada iki avuc bosluk olusuyor ve ekran BOZUK gorunuyor.
+ * Portrede bu yuzden tek sutuna geciyoruz: ekran, dugmeler, durum — bitisik
+ * ve birlikte ortalanmis. DOM sirasi (sahne, chrome, durum) dugmeleri
+ * ekranin ALTINA koyar; basparmak zaten orada. */
+#game-overlay.gs-narrow{flex-direction:column;gap:10px;}
+#game-overlay.gs-narrow .gs-chrome{position:static;padding:0;justify-content:center;
+ flex-wrap:wrap;}
+#game-overlay.gs-narrow .gs-status{position:static;max-width:92vw;
+ border:2px solid var(--ink);padding:8px 12px;}
 @media (prefers-reduced-motion: reduce){#game-overlay{will-change:auto;}}
 `;
 
@@ -127,7 +149,9 @@ function isDark() {
 
 /* ---------------- durum ---------------- */
 let overlay = null, stageEl = null, canvasEl = null, fpsEl = null, statusEl = null, gateEl = null;
+let chromeEl = null;
 let pauseBtn = null, soundBtn = null, exitBtn = null;
+let lastGeom = "";              /* son uygulanan canvas geometrisi (bkz. onResize) */
 let engine = null, bootPromise = null;
 let state = "closed";           /* closed | opening | gate | running | closing */
 let savedScrollY = 0;
@@ -151,20 +175,84 @@ const OWNED_KEYS = new Set([
   "Escape", "r", "R", "m", "M", "l", "L", "q", "Q"
 ]);
 
-/* ---------------- olcek ---------------- */
+/* ==========================================================================
+ * OLCEK — iki AYRI sayi
+ * ==========================================================================
+ * (1) TAMPON olcegi `s`: canvas.width = 480*s. Motor buraya ciziyor, tam sayi
+ *     olmak ZORUNDA (render.js drawImage'i tam sayi katiyla blit ediyor).
+ * (2) GOSTERIM boyutu: canvas.style.width. Bunun tam sayi olma zorunlulugu
+ *     YOK — tarayicinin isi.
+ *
+ * v0'da ikisi birbirine kilitliydi (gosterim = 480*s/dpr, yani 1 oyun pikseli
+ * = tam s cihaz pikseli). Masaustunde dogru karar: keskinlik oradan geliyor.
+ * TELEFONDA ise felaket — cunku `s` ASAGI yuvarlaniyor:
+ *
+ *   413x751 CSS, dpr 2  ->  gereken olcek 1,72  ->  s = 1  ->  oyun 240 px
+ *                           ekranin %58'i; kalan %42 bos lacivert.
+ *
+ * Kullanicinin ekran goruntusundeki tablo tam olarak bu. Cozum: dokunmatik
+ * ekranda gosterim boyutunu tampondan KOPARIP kutuya oturtmak.
+ * Bunun bedeli kesirli buyutme (nearest-neighbour'da bazi oyun pikselleri 1,
+ * bazilari 2 cihaz pikseli olur); 2x+ yogunluktaki bir telefon ekraninda bu
+ * fark gozle secilmez, ekranin yarisini kaybetmek ise seciliyor.
+ *
+ * Masaustu DOKUNULMADI: `pointer: fine` varsa daima tam esleme kullanilir,
+ * yani buyuk ekrandaki MAX_SCALE letterbox'i (§10.9) da aynen durur.
+ * Tek istisna TASMA: dar bir masaustu penceresinde (dpr 1, 413 px) tam olcek
+ * 480 px ister ve canvas kirpilirdi — o durumda her zaman kutuya sigdiririz.
+ * ========================================================================== */
+const COLUMN_GAP = 10;          /* .gs-narrow flex gap'i ile AYNI olmali */
+
 function currentDpr() { return Math.max(1, Math.min(window.devicePixelRatio || 1, 3)); }
-function currentScale() {
-  const dpr = currentDpr();
-  return Math.min(MAX_SCALE, pickScale(window.innerWidth, window.innerHeight, dpr));
+
+/* Oyuna kalan gercek alan. Portrede chrome (ve gorunuyorsa durum satiri) artik
+ * ekranin USTUNDE yuzmuyor, sutunda YER KAPLIYOR — payi burada dusuyoruz. */
+function availableBox() {
+  let reserved = 0;
+  if (portraitMQ.matches && chromeEl) {
+    reserved += chromeEl.offsetHeight + COLUMN_GAP;
+    if (statusEl && !statusEl.hidden) reserved += statusEl.offsetHeight + COLUMN_GAP;
+  }
+  return {
+    w: Math.max(1, window.innerWidth),
+    h: Math.max(1, window.innerHeight - reserved)
+  };
 }
+
+function currentScale() {
+  const box = availableBox();
+  return Math.min(MAX_SCALE, pickScale(box.w, box.h, currentDpr()));
+}
+
+/* DOKUNMATIK mi? Olcut ekran GENISLIGI degil, isaretleyici — cunku yatay
+ * tutulan bir telefon 915 px genisligindedir (yani "kucuk ekran" esiginin
+ * ustunde) ama tam esleme orada ekranin ancak %60'ini dolduruyordu; oysa
+ * oyunun ONERDIGI yon o. Buna karsilik 700 px'e daraltilmis bir MASAUSTU
+ * penceresi dpr 1'dedir ve kesirli buyutme orada GERCEKTEN goze batar.
+ * Fare = tam esleme, parmak = ekrani doldur. */
+function fitMode() { return !fineMQ.matches; }
+
+function computeGeom() {
+  const s = currentScale();
+  const box = availableBox();
+  const d = displaySize(box.w, box.h, s, currentDpr(), fitMode());
+  return { s, w: d.w, h: d.h, key: s + ":" + d.w + ":" + d.h };
+}
+
 /* Geometrinin TEK sahibi launcher'dir; boot canvas.width/height'a asla yazmaz. */
 function sizeCanvas() {
-  const dpr = currentDpr(), s = currentScale();
-  canvasEl.width = VIEW_W * s;
-  canvasEl.height = VIEW_H * s;
-  canvasEl.style.width = (VIEW_W * s / dpr) + "px";
-  canvasEl.style.height = (VIEW_H * s / dpr) + "px";
-  return s;
+  const g = computeGeom();
+  lastGeom = g.key;
+  canvasEl.width = VIEW_W * g.s;
+  canvasEl.height = VIEW_H * g.s;
+  canvasEl.style.width = g.w + "px";
+  canvasEl.style.height = g.h + "px";
+  return g.s;
+}
+
+/* Portre = tek sutun. Sinif overlay'de, kural CSS'te (bkz. .gs-narrow). */
+function applyLayout() {
+  if (overlay) overlay.classList.toggle("gs-narrow", portraitMQ.matches);
 }
 
 /* ---------------- overlay insasi ---------------- */
@@ -201,15 +289,15 @@ function buildOverlay() {
   overlay.appendChild(stageEl);
 
   /* Uc GERCEK <button> — klavye ve ekran okuyucu kullanicisi her an cikabilir. */
-  const chrome = document.createElement("div");
-  chrome.className = "gs-chrome";
+  chromeEl = document.createElement("div");
+  chromeEl.className = "gs-chrome";
   pauseBtn = chromeButton(t("pause"), togglePause);
   soundBtn = chromeButton(audioOn ? t("soundOn") : t("soundOff"), toggleSound);
   exitBtn = chromeButton(t("exit"), () => close());
-  chrome.appendChild(pauseBtn);
-  chrome.appendChild(soundBtn);
-  chrome.appendChild(exitBtn);
-  overlay.appendChild(chrome);
+  chromeEl.appendChild(pauseBtn);
+  chromeEl.appendChild(soundBtn);
+  chromeEl.appendChild(exitBtn);
+  overlay.appendChild(chromeEl);
 
   if (DEBUG) {
     fpsEl = document.createElement("div");
@@ -226,6 +314,8 @@ function buildOverlay() {
 
   /* HER ZAMAN body — asla re-parent edilmez (yukaridaki KRITIK TUZAK). */
   document.body.appendChild(overlay);
+  lastGeom = "";                  /* yeni canvas: onceki oturumun geometrisi GECERSIZ */
+  applyLayout();
   if (DEBUG) console.assert(overlay.parentElement === document.body, "[game] overlay body'nin cocugu olmali");
 }
 
@@ -368,13 +458,17 @@ function onKeyDown(e) {
 }
 
 /* ---------------- duraklat / ses ---------------- */
+/* Telefonda Esc TUSU YOK: ekran goruntusundeki "Esc'e bir daha bas" satiri
+ * orada karsiligi olmayan bir talimatti. Dokunmatikte gercek cikis yolunu
+ * (ÇIKIŞ dugmesi) soyler. */
+function pausedText() { return t(fineMQ.matches ? "paused" : "pausedTouch"); }
 function pause(armEscape) {
   if (!engine) return;
   engine.pause();
   escArmed = !!armEscape;
   pausedUi = true;
   if (pauseBtn) pauseBtn.textContent = t("resume");
-  setStatus(t("paused"));
+  setStatus(pausedText());
 }
 function unpause() {
   if (!engine) return;
@@ -398,7 +492,7 @@ function syncPauseChrome() {
   if (p === pausedUi) return;
   pausedUi = p;
   if (pauseBtn) pauseBtn.textContent = p ? t("resume") : t("pause");
-  if (p) setStatus(t("paused"));
+  if (p) setStatus(pausedText());
   else { escArmed = false; setStatus(""); }
 }
 function toggleSound() {
@@ -410,7 +504,12 @@ function toggleSound() {
 /* ---------------- sayfa olaylari ---------------- */
 let resizeRaf = 0;
 function onResize() {
+  applyLayout();                  /* once yerlesim: kutu hesabi ona bagli */
   if (state !== "running" || !engine) return;
+  /* Mobil tarayicilarda adres cubugu gizlenip gorununce resize YAGAR. Geometri
+   * degismediyse motoru duraklatip devam ettirmenin anlami yok — her seferinde
+   * bir kare kaybi ve sesli/gorsel takilma demekti. */
+  if (computeGeom().key === lastGeom) return;
   if (currentAnim) { try { currentAnim.finish(); } catch (e) {} }  /* FLIP'i son duruma atla */
   const wasPaused = engine.isPaused();
   engine.pause();
@@ -528,8 +627,9 @@ function close() {
   const finish = () => {
     if (engine) { engine.destroy(); engine = null; }
     if (overlay) { overlay.remove(); overlay = null; }
-    stageEl = canvasEl = fpsEl = statusEl = gateEl = null;
+    stageEl = canvasEl = fpsEl = statusEl = gateEl = chromeEl = null;
     pauseBtn = soundBtn = exitBtn = null;
+    lastGeom = "";
     releaseInert();
     unlockScroll();
     escArmed = false;
@@ -578,7 +678,7 @@ function bindBridgeListeners() {
         if (pauseBtn) pauseBtn.textContent = (engine && engine.isPaused()) ? t("resume") : t("pause");
         if (soundBtn) soundBtn.textContent = audioOn ? t("soundOn") : t("soundOff");
         if (exitBtn) exitBtn.textContent = t("exit");
-        if (statusEl && !statusEl.hidden && engine && engine.isPaused()) setStatus(t("paused"));
+        if (statusEl && !statusEl.hidden && engine && engine.isPaused()) setStatus(pausedText());
       }
       if (engine) engine.setLang(lang());
     });
