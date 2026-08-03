@@ -13,5 +13,22 @@
   "assets": {
     "binding": "ASSETS",
     "directory": "dist"
-  }
+  },
+
+  // ==========================================================================
+  // SÜRE MODU SKOR TABLOSU — ortak liste
+  // ==========================================================================
+  // `binding` adi KODUN gordugu isimdir (api/leaderboard.js: env.LEADERBOARD);
+  // `id` ise Cloudflare hesabindaki namespace'i isaret eder. Namespace'in
+  // panelde gorunen BASLIGI (static_website) burayla ilgisizdir — degistirmek
+  // ya da baska bir isim vermek hicbir seyi bozmaz, onemli olan bu id'dir.
+  //
+  // Liste tek bir anahtarda (board:v1) JSON olarak durur ve ILK gonderilen
+  // kosuda kendiliginden olusur; panelden elle kayit eklemek gerekmez.
+  //
+  // Bu blok SILINIRSE /api/leaderboard 200 + "disabled" dondurur ve oyun
+  // yalnizca yerel listeyi gosterir — site yine calisir.
+  "kv_namespaces": [
+    { "binding": "LEADERBOARD", "id": "ad1a1c2472d4458dbfbf29a6428924d6" }
+  ]
 }

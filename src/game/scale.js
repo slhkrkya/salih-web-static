@@ -1,0 +1,31 @@
+/* game/scale.js — TEK olcek kaynagi (§4.1, K2, K7).
+ * Bu dosyanin disinda hicbir modulde ciplak 16/272/480/40/17 olcek literal'i BULUNMAZ.
+ * Sayilar DONDURULMUS sozlesmedir: degistirilemez, yuvarlanamaz, "iyilestirilemez". */
+export const TILE   = 16;
+export const VIEW_W = 480;          // 30 tile
+export const VIEW_H = 272;          // 17 tile
+export const CHAR_W = 10, CHAR_H = 16;
+export const HIT_W  = 8,  HIT_H  = 14;
+export const CHUNK_W = 40, CHUNK_H = 17;
+export function pickScale(cssW, cssH, dpr) {
+  return Math.max(1, Math.floor(Math.min(cssW * dpr / VIEW_W, cssH * dpr / VIEW_H)));
+}
+
+/* Tam esleme kutunun bu kadarini dolduramiyorsa gerilir (bkz. displaySize). */
+export const FIT_MIN_FILL = 0.92;
+
+/* GOSTERIM (CSS) boyutu — tampon olceginden AYRI sayi. Gerekcesi ve karar
+ * tablosu launcher.js'teki "OLCEK — iki AYRI sayi" blogunda.
+ *   boxW/boxH : oyuna kalan gercek alan (CSS px)
+ *   s         : tampon olcegi (tam sayi, pickScale)
+ *   dpr       : cihaz piksel orani
+ *   stretch   : kesirli buyutmeye izin var mi (kucuk + dokunmatik ekran)
+ * Tasma HER kosulda kirpilir: tam esleme kutuya sigmiyorsa kutu kazanir. */
+export function displaySize(boxW, boxH, s, dpr, stretch) {
+  const exactW = VIEW_W * s / dpr, exactH = VIEW_H * s / dpr;
+  const k = Math.min(boxW / VIEW_W, boxH / VIEW_H);       /* kutuya sigan kesirli olcek */
+  const overflow = exactW > boxW || exactH > boxH;
+  const fill = overflow || (stretch && exactW < VIEW_W * k * FIT_MIN_FILL);
+  const w = Math.max(1, Math.round(fill ? VIEW_W * k : exactW));
+  return { w, h: Math.max(1, Math.round(w * VIEW_H / VIEW_W)) };  /* oran TEK yerden turer */
+}
