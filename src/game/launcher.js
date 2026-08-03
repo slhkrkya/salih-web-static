@@ -66,6 +66,10 @@ const OVERLAY_CSS = `
  -webkit-user-select:none;user-select:none;
  transform-origin:0 0;will-change:transform,opacity;}
 #game-overlay:focus{outline:none;}
+/* Ustteki user-select:none YAZI ALANLARINI KAPSAMAMALI: eski WebKit'te bir
+ * atadan miras alinan bu kural <input>'a odaklanmayi/yazmayi engelleyebiliyor
+ * ve isim girisi mobilde sessizce olurdu. */
+#game-overlay input,#game-overlay textarea{-webkit-user-select:text;user-select:text;}
 #game-overlay .gs-stage{position:relative;display:flex;align-items:center;justify-content:center;
  touch-action:none;}
 /* [hidden] UA kurali display:flex'e YENILIR (ozgulluk) — portre kapisi acikken
@@ -433,8 +437,29 @@ function focusables() {
   return Array.prototype.slice.call(overlay.querySelectorAll("button:not([disabled])"))
     .filter((b) => b.offsetParent !== null || b.isConnected);
 }
+/* ==========================================================================
+ * METIN KUTUSU ODAKTAYKEN HICBIR TUS SAHIPLENILMEZ
+ * ==========================================================================
+ * Bulunan gercek hata (oyun testi: "isim yazarken a, k, l gibi harfleri
+ * yazamiyorum"). Sebep incelikliydi: bu dinleyici window'a CAPTURE fazinda
+ * bagli, yani <input>'un kendi keydown'indan ONCE calisiyor. Isim kutusunun
+ * icindeki `e.stopPropagation()` cok gec kaliyordu — OWNED_KEYS listesindeki
+ * her harf (a, d, w, j, k, l, m, q, r ve buyukleri) burada preventDefault
+ * yiyor ve karakter kutuya HIC girmiyordu.
+ *
+ * Cozum listeden harf cikarmak DEGIL — o zaman oynanista sayfa kayardi.
+ * Odakta gercek bir yazi alani varsa launcher tamamen cekilir: ne
+ * preventDefault, ne Escape, ne Tab tuzagi. Escape'i de birakmak DOGRU,
+ * cunku isim kutusunun kendi dinleyicisi onu "girisi iptal et" olarak
+ * kullaniyor; eskiden launcher once davranip overlay'i kapatiyordu. */
+function isTextTarget(t) {
+  if (!t) return false;
+  const tag = t.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable === true;
+}
 function onKeyDown(e) {
   if (state !== "running" && state !== "gate") return;
+  if (isTextTarget(e.target)) return;
   if (e.key === "Tab") {                        /* §10.10: Tab chrome butonlari arasinda doner */
     const btns = focusables();
     if (!btns.length) return;

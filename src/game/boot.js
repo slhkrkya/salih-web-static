@@ -629,10 +629,17 @@ export function boot(canvas, opts) {
     if (body.y + body.h >= HAZARD_FLOOR_Y) triggerRevert();
   }
 
+  /* Toplama testi (checkPips) ve CIZIM (drawPip) ayni biti okumak ZORUNDA:
+   * ayrilirlarsa alinmis bir kutu ekranda durmaya devam eder. */
+  function pipBitOf(p) {
+    return verbBitOf[p.id] !== undefined ? verbBitOf[p.id] : SaveMod.PIP_BIT.TRAIL;
+  }
+  function pipTaken(p) { return !!(save.pips & (1 << pipBitOf(p))); }
+
   function checkPips() {
     if (currentWorld !== 1) return;
     for (const p of w1.pipSpawns) {
-      const bit = verbBitOf[p.id] !== undefined ? verbBitOf[p.id] : SaveMod.PIP_BIT.TRAIL;
+      const bit = pipBitOf(p);
       if (save.pips & (1 << bit)) continue;
       const dx = (body.x + body.w * 0.5) - p.x, dy = (body.y + body.h * 0.5) - p.y;
       if (dx * dx + dy * dy > 22 * 22) continue;
@@ -2215,6 +2222,7 @@ export function boot(canvas, opts) {
       }
 
       if (currentWorld === 1) {
+        for (const p of w1.pipSpawns) drawPip(renderer.ctx, p, rcx, rcy);
         for (const bcn of w1Beacons) drawCheckpoint(renderer.ctx, bcn.x, bcn.y, rcx, rcy, checkpointX >= bcn.x);
       } else if (currentWorld === 6) {
         for (const bcn of w6Beacons) drawCheckpoint(renderer.ctx, bcn.x, bcn.y, rcx, rcy, checkpointX >= bcn.x);
@@ -2616,6 +2624,45 @@ export function boot(canvas, opts) {
     ctx.restore();
   }
 
+  /* ==========================================================================
+   * YETENEK KUTUSU — bulunan gercek eksik
+   * ==========================================================================
+   * "İleride bir yetenek kutusu var" tabelasindan sonra ekranda hicbir sey
+   * gorunmuyordu (oyun testi). Dogruydu: `pipSpawns` TEK bir yerde, checkPips()
+   * temas testinde kullaniliyordu — hicbir yerde CIZILMIYORDU. Yani tabela var
+   * olmayan bir nesneyi isaret ediyor, pip'ler de bombos havada sessizce
+   * toplaniyordu; oyuncunun "bir sey aldim" diye anlamasinin tek yolu HUD'da
+   * yanan kareyi fark etmekti.
+   *
+   * Kutu YALNIZCA alinmamisken cizilir — kaybolmasi zaten "aldin" geri
+   * bildirimidir; ustune HUD karesi yanar ve pip'in adi yazilir.
+   *
+   * Renk pip'in ne verdigine gore: ATEŞ ET pembe (HUD fiil yuvasi ve "shoot"
+   * tabelasiyla ayni), zeminle ilgili olanlar mavi. */
+  const PIP_HALF = 7;           /* kutu yari kenari — 14x14 px, bir tile'dan kucuk */
+  function drawPip(ctx, p, camX, camY) {
+    if (pipTaken(p)) return;
+    const gx = Math.round(p.x - camX);
+    if (gx < -20 || gx > VIEW_W + 20) return;
+    /* Salinim kucuk (±2 px): toplama yaricapi 22 px, yani gorunen kutu ile
+     * gercek temas alani hicbir zaman birbirinden kopmaz. */
+    const bob = reduceMotion ? 0 : Math.round(Math.sin(Date.now() / 420) * 2);
+    const gy = Math.round(p.y - camY) + bob;
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = palette.css[p.id === "shell" ? SLOT.ACCENT : SLOT.SECONDARY];
+    ctx.fillRect(gx - PIP_HALF, gy - PIP_HALF, PIP_HALF * 2, 2);
+    ctx.fillRect(gx - PIP_HALF, gy + PIP_HALF - 2, PIP_HALF * 2, 2);
+    ctx.fillRect(gx - PIP_HALF, gy - PIP_HALF, 2, PIP_HALF * 2);
+    ctx.fillRect(gx + PIP_HALF - 2, gy - PIP_HALF, 2, PIP_HALF * 2);
+    /* Nabizli cekirdek: duragan bir cerceve arkadaki tile deseninde
+     * kayboluyor, hareket eden bir nokta gozu ceker. */
+    ctx.globalAlpha = reduceMotion ? 0.85 : 0.55 + Math.sin(Date.now() / 200) * 0.3;
+    ctx.fillStyle = palette.css[SLOT.LIGHT];
+    ctx.fillRect(gx - 2, gy - 2, 4, 4);
+    ctx.restore();
+  }
+
   function drawTouchHints(ctx) {
     if (!input.touchActive) return;
     const r = input.buttonRects();
@@ -2778,7 +2825,7 @@ export function boot(canvas, opts) {
         gameFinished, perfTier: perf.tier, telemetry: telemetry.summary(),
         revertTimer, checkpointX, checkpointY,
         pushWallX, pushWallGrace, ghostPlaying: ghost.isPlaying, ghostGrace,
-        ghostX: ghostRenderX
+        ghostX: ghostRenderX, pips: save.pips
       };
     }
   };

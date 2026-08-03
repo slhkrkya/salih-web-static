@@ -55,7 +55,6 @@ export function buildWorld1() {
 
   /* ================================================= A1 — Yeniden Yaz odasi */
   const aStart = lb.cursor;
-  lb.label(lb.cursor, "Q: yerdeyken önüne zemin koyar", "Q lays ground ahead while you stand", "ground");
   lb.pushFlat(10);
   /* 1. kapakli bulmaca: REWRITE henuz yokken gecebilecegi bir ledge — DIKKAT
    * (bulunan gercek hata): pushLedge(w,up) zaten kendi genisliginde zemin
@@ -70,6 +69,12 @@ export function buildWorld1() {
   lb.pushFlat(9);
   const sPip1 = lb.pushFlat(4);
   pipSpawns.push({ x: (sPip1.x0 + 2) * TILE, y: lb.curFloorY * TILE - 16, id: "rewrite" });
+  /* Tabela kutunun ARDINDA (oyun testi): eskiden bolumun 4. tile'indaydi, yani
+   * Q kutusundan 36 tile ONCE — oyuncuya olmayan bir tusa basmasi soyleniyordu.
+   * Kutunun kendi diyalogu "yeni yetenek"i duyurur, tabela da KISITI ekler:
+   * yalniz YERDEYKEN calisir. Ustteki yorumun dedigi gibi A1'in ilk yarisi
+   * zaten REWRITE'siz gecilecek sekilde kuruldu. */
+  lb.label(lb.cursor, "Q: yerdeyken önüne zemin koyar", "Q lays ground ahead while you stand", "ground");
   padTo(lb, aStart, 50);
   segments.push({ id: "a1", tileCount: lb.cursor - aStart, topSpeedTilePerSec: TOP_SPEED_TILE_PER_SEC });
 
@@ -143,7 +148,12 @@ export function buildWorld1() {
 
   /* ================================================= D1 — SSE Koridoru + Dikey Kule */
   const dStart = lb.cursor;
-  lb.label(lb.cursor, "Gelen atışı J ile vur ya da Q ile durdur", "Shoot the incoming shot with J, or block it with Q", "shoot");
+  /* J BURADA HENUZ YOK: ATEŞ ET kutusu 427. tile'da, burasi 309. Tabela eskiden
+   * "J ile vur ya da Q ile durdur" diyordu — oyuncunun deneyebilecegi tek yari
+   * ikincisiydi. Oyunda pipe_mouth yalnizca burada var, yani J bu dusman icin
+   * hicbir zaman cevap degil; yaniltici yari cikarildi ve nokta rengi de sahip
+   * olunan fiile (Q = mavi) cevrildi. */
+  lb.label(lb.cursor, "Gelen atışı Q ile durdur", "Block the incoming shot with Q", "ground");
   const sPipe = lb.pushFlat(30);
   enemySpawns.push({ type: "pipe_mouth", x: (sPipe.x0 + 4) * TILE, y: lb.curFloorY * TILE - 12, opts: { face: 1 } });
   lb.pushFlat(3, { gap: true });
@@ -168,14 +178,22 @@ export function buildWorld1() {
 
   /* ================================================= E1 — Kabuk Yagmuru + Donmuş Hol */
   const eStart = lb.cursor;
-  lb.label(lb.cursor, "J ile ateş et: sürüyü susturur", "Press J to shoot: it silences the swarm", "shoot");
+  /* SIRA ONEMLI (oyun testinde raporlandi): "J ile ateş et" tabelasi eskiden
+   * BOLUM BASINDA, yani ATEŞ ET kutusundan 23 tile ONCE duruyordu — oyuncuya
+   * henuz sahip olmadigi bir tusa basmasi soyleniyordu. Tabela artik kutunun
+   * ARDINDA. Cani once susturamadan gormek KASITLI: once ihtiyac (14. tile'daki
+   * can), sonra arac (kutu), sonra ne ise yaradigi (tabela). Ikinci can 675.
+   * tile'da ve orada silah coktan elde. */
   const sBell = lb.pushFlat(20);
   enemySpawns.push({ type: "bell", x: (sBell.x0 + 10) * TILE, y: lb.curFloorY * TILE - 24, opts: {} });
   const sPip2 = lb.pushFlat(6);
   pipSpawns.push({ x: (sPip2.x0 + 3) * TILE, y: lb.curFloorY * TILE - 16, id: "shell" });
-  lb.label(lb.cursor, "İleride bir yetenek kutusu var", "There is a skill pickup ahead");
+  lb.label(lb.cursor, "J ile ateş et: sürüyü susturur", "Press J to shoot: it silences the swarm", "shoot");
   const sHall = lb.pushFlat(30);
   const residentCounterX = sHall.x0 * TILE;
+  /* Kutuya 14 tile kala: tabela ile kutu ayni ekranda (30 tile) gorunsun ama
+   * ust uste binmesin diye ateş tabelasindan 18 tile ileride. */
+  lb.label(sHall.x0 + 18, "İleride bir yetenek kutusu var", "There is a skill pickup ahead");
   const sPip7 = lb.pushFlat(4);
   pipSpawns.push({ x: (sPip7.x0 + 2) * TILE, y: lb.curFloorY * TILE - 16, id: "trail" });
   padTo(lb, eStart, 118);

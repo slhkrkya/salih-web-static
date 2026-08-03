@@ -55,7 +55,12 @@ function json(data, status) {
     status: status || 200,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store"
+      "cache-control": "no-store",
+      /* Sitenin TEK yeni URL'i burasi ve hicbir yerden BAGLANTI verilmiyor —
+       * yani arama motorunun bulmasi zaten beklenmez. Yine de bulursa (tarayici
+       * telemetrisi, birinin paylasmasi) sonuclarda takma adlardan olusan bir
+       * JSON sayfasi cikmasin: portfolyo sitesinin arama gorunumunu kirletir. */
+      "x-robots-tag": "noindex, nofollow"
     }
   });
 }

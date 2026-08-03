@@ -130,12 +130,36 @@ export function createAudio() {
     if (fn) fn();
   }
 
+  /* ==========================================================================
+   * DRONE SEVIYESI — oyun testi: "oyuna girince gelen ses birden yuksek"
+   * ==========================================================================
+   * Iki ayri sorun vardi ve ikisi de duzeltildi:
+   *
+   *  1. SEVIYE. 0,05 tek osilator icin makuldu ama drone IKI sinusu AYNI
+   *     frekansta (110 Hz, detune 0) calistiriyor — faz farki olmadigi icin
+   *     genlik toplaniyor, yani kulaga giden 0,10 idi. Yeni deger 0,018;
+   *     iki osilatorle birlikte ~0,036, master 0,5 ile ~0,018. Eskisinin
+   *     ucte birinden az.
+   *  2. ANI BASLANGIC. Kulagi asil yoran seviye degil, SICRAMAdir: 110 Hz'lik
+   *     bir sinus sifirdan tam seviyeye tek karede ciktiginda kulaklikta tok
+   *     bir "pat" olur. Artik 1,4 saniyede yumusakca aciliyor — oyuncu sesi
+   *     fark ettiginde ses zaten ORADA olmuyor, YERLESIYOR.
+   *
+   * Ayni gerekce kapanista da gecerli (SES KAPALI'ya basmak ya da MERGE'in
+   * drone'u kesmesi): once kisa bir sonme, sonra durdurma. */
+  const DRONE_GAIN = 0.018;
+  const DRONE_FADE_IN = 1.4;    /* saniye */
+  const DRONE_FADE_OUT = 0.15;
+
   function startDrone() {
     if (!enabled || droneOsc1) return;
     ensureCtx();
     if (!ctx) return;
+    const t0 = ctx.currentTime;
     droneGain = ctx.createGain();
-    droneGain.gain.value = 0.05;
+    /* exponentialRamp SIFIRDAN baslayamaz — beep() ile ayni 0.0001 tabani. */
+    droneGain.gain.setValueAtTime(0.0001, t0);
+    droneGain.gain.exponentialRampToValueAtTime(DRONE_GAIN, t0 + DRONE_FADE_IN);
     droneGain.connect(master);
 
     droneOsc1 = ctx.createOscillator();
@@ -152,10 +176,34 @@ export function createAudio() {
     droneOsc2.start();
   }
 
+  /* Referanslar ONCE kopyalanip alanlar sifirlanir: sonme suruyorken
+   * startDrone() cagrilirsa "zaten calisiyor" diye ERKEN DONMESIN. */
   function stopDrone() {
-    if (droneOsc1) { try { droneOsc1.stop(); } catch (e) {} droneOsc1.disconnect(); droneOsc1 = null; }
-    if (droneOsc2) { try { droneOsc2.stop(); } catch (e) {} droneOsc2.disconnect(); droneOsc2 = null; }
-    if (droneGain) { droneGain.disconnect(); droneGain = null; }
+    const o1 = droneOsc1, o2 = droneOsc2, g = droneGain;
+    droneOsc1 = null; droneOsc2 = null; droneGain = null;
+    if (!o1 && !o2 && !g) return;
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    if (g) {
+      try {
+        g.gain.cancelScheduledValues(t0);
+        g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + DRONE_FADE_OUT);
+      } catch (e) { /* otomasyon reddedilirse asagidaki stop yine de keser */ }
+    }
+    /* stop() ZAMANLI verilir: disconnect hic calismasa bile ses GARANTI biter. */
+    const stopAt = t0 + DRONE_FADE_OUT + 0.02;
+    const cut = (osc) => {
+      if (!osc) return;
+      try { osc.stop(stopAt); } catch (e) { try { osc.stop(); } catch (e2) {} }
+      /* Dugumler ses bitince birakilir — hemen disconnect etmek sonmeyi keser.
+       * Kazanc dugumu de burada dusulur, yoksa her ac/kapa bir dugum sizdirir. */
+      osc.onended = () => {
+        try { osc.disconnect(); } catch (e) {}
+        if (g) { try { g.disconnect(); } catch (e) {} }
+      };
+    };
+    cut(o1); cut(o2);
   }
 
   /* §3.7: channelDetune = (rate/100)*0.8 cent. */
