@@ -1215,11 +1215,26 @@ var content = {
           "link": { "type": "locked" }
         },
         {
+          "id": "cvuyum",
+          "title": "CVUyum — İlana Uyarlanan CV Üretici",
+          "meta": "FastAPI + Next.js 16 · Kişisel proje · Aktif geliştirme",
+          "tags": ["backend", "frontend", "aiml", "architectureSecurity", "openSource"],
+          "badge": "newActive",
+          "techBadges": ["FastAPI", "Next.js 16", "Qdrant"],
+          "tech": ["Python", "FastAPI", "SQLAlchemy", "Alembic", "PostgreSQL", "Qdrant", "RAG", "Multi-Agent Orchestration", "OpenAI", "Next.js", "React", "TypeScript", "Tailwind CSS", "JWT", "HttpOnly/SameSite Cookie", "argon2", "Docker"],
+          "summary": "Bir iş ilanına uyarlanmış CV üreten çok ajanlı bir sistem yazdım: Qdrant üzerindeki kanıt-temelli RAG katmanı ajanları besliyor, ama model yalnızca kullanıcının gerçekten kaydettiği veriyi yeniden sıralayıp ifade edebiliyor — uydurulmuş tek bir cümle bile kalıcılığa geçemiyor.",
+          "details": [
+            "Altı ajan rolünü (strateji, yetkinlik sentezi, kanıt eşleme, küratör, yazar, denetçi) framework kullanmadan elle yazdığım async Python ile orkestre ettim; yetki sınırlarını Pydantic sözleşmeleriyle kodda dayattım, yalnızca yazar ajanı görünür metin üretebiliyor.",
+            "Kalıcılığa giden tek kapıya 1.500 satırlık, LLM'siz ve deterministik bir doğrulayıcı koydum: üretilen her sayı ve özel isim, maddenin kendi alıntıladığı kaynak metinde geçmek zorunda; geçmezse madde bir kez onarılıyor, o da olmazsa birebir kaynağa dönüyor.",
+            "Kasten yalan söyleyen adversarial LLM ikizlerini gerçek sevkiyat hattından geçirdim; 419 backend ve 21 frontend testi tek bir ağ çağrısı yapmadan koşuyor."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/cvuyum" }
+        },
+        {
           "id": "ai-cpp",
           "title": "AI_Cpp",
           "meta": "C++ · Kişisel proje",
           "tags": ["backend", "aiml", "openSource"],
-          "badge": "newActive",
           "techBadges": ["C++", "Ollama", "LLM"],
           "tech": ["C++", "Ollama", "Bulut LLM'ler"],
           "summary": "Terminalde çalışan bir AI kodlama asistanı yazdım: yerel (Ollama) ve bulut LLM'leri aynı arayüzden kullanabiliyor.",
@@ -1305,11 +1320,11 @@ var content = {
       "heading": "Envanter",
       "subheading": "Teknoloji adı değil, kanıt: her etikete tıkla, onu kullandığım projeye git.",
       "tabs": {
-        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation"] },
-        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components"] },
-        "architectureSecurity": { "label": "Mimari ve Güvenlik", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log"] },
-        "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
-        "databases": { "label": "Veritabanları", "items": ["PostgreSQL", "SQL Server", "pgvector"] },
+        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation", "Python", "FastAPI", "SQLAlchemy", "Alembic"] },
+        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components", "Next.js", "React"] },
+        "architectureSecurity": { "label": "Mimari ve Güvenlik", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log", "argon2"] },
+        "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Qdrant", "Multi-Agent Orchestration", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
+        "databases": { "label": "Veritabanları", "items": ["PostgreSQL", "SQL Server", "pgvector", "Qdrant"] },
         "tools": { "label": "Araçlar", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Agile/Scrum"] }
       }
     },
@@ -1526,11 +1541,26 @@ var content = {
           "link": { "type": "locked" }
         },
         {
+          "id": "cvuyum",
+          "title": "CVUyum — Job-Tailored CV Generator",
+          "meta": "FastAPI + Next.js 16 · Personal project · Active development",
+          "tags": ["backend", "frontend", "aiml", "architectureSecurity", "openSource"],
+          "badge": "newActive",
+          "techBadges": ["FastAPI", "Next.js 16", "Qdrant"],
+          "tech": ["Python", "FastAPI", "SQLAlchemy", "Alembic", "PostgreSQL", "Qdrant", "RAG", "Multi-Agent Orchestration", "OpenAI", "Next.js", "React", "TypeScript", "Tailwind CSS", "JWT", "HttpOnly/SameSite Cookie", "argon2", "Docker"],
+          "summary": "Built a multi-agent system that tailors a CV to a job posting: an evidence-based RAG layer on Qdrant feeds the agents, but the model may only reorder and rephrase what the user actually stored — not one fabricated sentence reaches persistence.",
+          "details": [
+            "Orchestrated six agent roles (strategy, capability synthesis, evidence mapping, curation, writing, review) in hand-written async Python with no agent framework, enforcing each role's authority in code through Pydantic contracts so only the writer agent can emit visible prose.",
+            "Put a 1,500-line, LLM-free deterministic validator on the single path to persistence: every generated number and proper noun must appear in that bullet's own cited source text, or the bullet is repaired once and otherwise falls back to the verbatim source.",
+            "Ran adversarial LLM doubles that lie on purpose through the real shipping pipeline; 419 backend and 21 frontend tests execute without a single network call."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/cvuyum" }
+        },
+        {
           "id": "ai-cpp",
           "title": "AI_Cpp",
           "meta": "C++ · Personal project",
           "tags": ["backend", "aiml", "openSource"],
-          "badge": "newActive",
           "techBadges": ["C++", "Ollama", "LLM"],
           "tech": ["C++", "Ollama", "Cloud LLMs"],
           "summary": "Wrote a terminal AI coding assistant that runs local (Ollama) and cloud LLMs behind the same interface.",
@@ -1616,11 +1646,11 @@ var content = {
       "heading": "Inventory",
       "subheading": "Not just a label — proof: click a skill and jump to the project that used it.",
       "tabs": {
-        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation"] },
-        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components"] },
-        "architectureSecurity": { "label": "Architecture & Security", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log"] },
-        "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
-        "databases": { "label": "Databases", "items": ["PostgreSQL", "SQL Server", "pgvector"] },
+        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation", "Python", "FastAPI", "SQLAlchemy", "Alembic"] },
+        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components", "Next.js", "React"] },
+        "architectureSecurity": { "label": "Architecture & Security", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log", "argon2"] },
+        "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Qdrant", "Multi-Agent Orchestration", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
+        "databases": { "label": "Databases", "items": ["PostgreSQL", "SQL Server", "pgvector", "Qdrant"] },
         "tools": { "label": "Tools", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Agile/Scrum"] }
       }
     },
