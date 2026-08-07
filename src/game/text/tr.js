@@ -22,7 +22,7 @@ export default {
     connecting: "AÇILIYOR",
     pickStage: "BÖLÜM SEÇ", locked: "KİLİTLİ", cancel: "İPTAL",
     controls: "TUŞLAR", pips: "YETENEK",
-    boss: "PATRON", shootAt: "ATEŞ ET", shielded: "KALKANI AÇIK",
+    boss: "PATRON", shootAt: "ATEŞ ET", shielded: "KALKANI AÇIK", jammed: "TUTUKLUK",
     /* Patron saldirilarinin ekranda gorunen adlari. Ilk uc YOKSAY'in, son
      * dordu AYNA'nindir (AVCI ÇAĞIRIYOR ikisinde de kullanilir). */
     atk: {
@@ -61,7 +61,7 @@ export default {
   controls: [
     "A D veya yön tuşları: yürü",
     "BOŞLUK, W veya YUKARI: zıpla",
-    "J veya SHIFT: ateş et, basılı tut seri atar",
+    "J/SHIFT: ateş et; sürekli tutarsan ısınıp tutukluk yapar",
     "Q: önüne zemin koy (yerdeyken)",
     "P veya ESC: duraklat",
     "M: harita ve bölüm seçimi, T: dokunmatik"

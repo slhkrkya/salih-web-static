@@ -4,7 +4,7 @@
  *
  * Kaynak: docs/oyun-v0-kapsam.md §7.1-§7.2.
  *
- * IKI SAPMA (ikisi de oyun testiyle geldi, acikca isaretli):
+ * UC SAPMA (ucu de oyun testiyle geldi, acikca isaretli):
  *
  * 1) TUS AYRIMI. Kitap "TEK BUTON" diyordu ve hangi fiilin calisacagini
  *    `contextResolve()` seciyordu. Pratikte cozulemedi: ayni tus hem dovuste
@@ -21,6 +21,14 @@
  *    AYNI sonuc, ama aktif bir eylemle), AVCI'nin ve patronlarin canini
  *    dusurur. Susturmanin oran (rate) sozlesmesi DEGISMEDI.
  *
+ * 3) ISINMA + TUTUKLUK. ATEŞ ET eskiden yalniz FIRE_COOLDOWN'a (12 kare)
+ *    bagliydi — tetik basili tutuldugu surece SINIRSIZ ates edilebiliyordu,
+ *    "gercek bir silah" hissi yoktu. Artik her atis bir ISI metresine
+ *    (fireHeat) ekleniyor; metre tavana (fireHeatMax) vurunca silah
+ *    TUTUKLUK yapar (girdi tamamen yok sayilir) ve yalniz KENDI KENDINE
+ *    sifira soguyunca yeniden ates alir. Susturma/hasar sozlesmesi DEGISMEDI,
+ *    yalniz "ne kadar UZUN sureyle" ates edebilecegine bir sinir geldi.
+ *
  * ZEMİN YAP: YERDEYKEN onundeki TAM BIR TILE'lik hucreye (16 px) zemin
  * karosu koyar — yalnizca hucre BOSSA. Havada hicbir sey yapmaz (yoksa
  * oyuncu kendi etrafina duvar/tavan orup kapanabiliyordu). 7 karede bir,
@@ -31,8 +39,11 @@
  * kaynak olsun diye metre cok yavas dolar, karolar da altinda durup
  * bekleyemeyecegin kadar cabuk erir — koprüyu kurarken YURUMEK gerekir.)
  *
- * ATEŞ ET: 12 karede bir mermi (basili tutulursa otomatik tekrarlar).
- * Mermi govdenin on hizasindan cikar, oyuncunun baktigi yone gider.
+ * ATEŞ ET: 12 karede bir mermi (basili tutulursa otomatik tekrarlar), ama
+ * SINIRSIZ DEGIL — her atis silahi isitir, tavana vuran silah TUTUKLUK
+ * yapip kendi kendine soguyana dek ates almaz (bkz. asagida ISINMA +
+ * TUTUKLUK). Mermi govdenin on hizasindan cikar, oyuncunun baktigi yone
+ * gider.
  *
  * ==========================================================================
  * ARAYUZ SOZLESMESI
@@ -51,6 +62,9 @@
  *   verbs.active            -> HUD/telemetri icin "su an anlamli olan" fiil
  *   verbs.meter / meterMax  -> ZEMİN YAP metresi
  *   verbs.fireCooldown / fireCooldownMax -> ATEŞ ET beklemesi
+ *   verbs.fireHeat / fireHeatMax -> ATEŞ ET isi metresi (0..fireHeatMax)
+ *   verbs.jammed            -> tavana vurup TUTUKLUK yapti mi
+ *   verbs.justJammed        -> bu karede TUTUKLUK BASLADI mi (ses icin)
  *   verbs.placedThisFrame   -> bu karede karo kondu mu (ses icin)
  *   verbs.firedThisFrame    -> bu karede mermi cikti mi (ses icin)
  *   verbs.wastedGround / wastedVerb    -> sonucsuz basis (HUD flasi)
@@ -85,6 +99,18 @@ const FIRE_COOLDOWN = 12;             /* 5 atis/sn — nisan almadan, akici */
 const MUZZLE_AHEAD_PX = 7;            /* namlu agzi: govde kenarinin hemen onu */
 const MUZZLE_UP_PX = 6;               /* govde merkezinden biraz yukari (gogus hizasi) */
 
+/* ISINMA + TUTUKLUK (oyun testiyle istendi): eskiden ATEŞ ET yalniz
+ * FIRE_COOLDOWN'a bagliydi, yani tetik basili tutuldugu surece SONSUZA KADAR
+ * (5 atis/sn) ates edilebiliyordu — ikinci bir sinirlama YOKTU. Simdi her
+ * atis bir ISI metresine ekleniyor; metre tavana vurunca silah TUTUKLUK
+ * yapar (girdi tamamen yok sayilir) ve yalniz KENDI KENDINE tabana (0)
+ * soguyunca yeniden ates alir — oyuncu tetigi birakmak ZORUNDA degildir ama
+ * surekli basili tutarsa er ya da gec durmak zorunda kalir. */
+const FIRE_HEAT_MAX = 100;
+const FIRE_HEAT_PER_SHOT = 16;         /* ~7 atista tavan (~1,7 sn surekli ates) */
+const FIRE_HEAT_COOL_PER_FRAME = 0.4;  /* tetik BIRAKILINCA soguma */
+const FIRE_JAM_COOL_PER_FRAME = 1.1;   /* TUTUKLUK sirasinda ZORLA havalanma — ~1,5 sn */
+
 export function createVerbSystem() {
   let unlockedMask = 0;   /* bit0 REWRITE, bit1 SHOOT — save.js ile ayni sira */
 
@@ -102,6 +128,9 @@ export function createVerbSystem() {
 
   /* ATES durumu */
   let fireCooldown = 0;
+  let fireHeat = 0;
+  let jammed = false;
+  let justJammed = false;   /* bu karede TUTUKLUK BASLADI mi (ses icin) */
 
   let active = VERB.NONE;
   let lastUsed = VERB.NONE;
@@ -235,11 +264,19 @@ export function createVerbSystem() {
   }
 
   /* ATES: kenar VE seviye ayni sekilde ele alinir (basili tutmak otomatik
-   * tekrar eder). Tek kapi bekleme sayacidir; "mermi hakki" gibi ikinci bir
-   * kaynak YOK — nisan almak zaten yeterince is, ustune sayac saymak dovusu
-   * yeniden bir bekleme oyununa cevirirdi. */
+   * tekrar eder). Bekleme sayaci (fireCooldown) atislar ARASI ritmi tutar;
+   * ISI metresi (fireHeat) ise SUREKLI ates etmeyi sinirlar — ikisi ayri
+   * amaclar icin: biri "ne kadar HIZLI", digeri "ne kadar UZUN sureyle"
+   * ates edebilecegini belirler. */
   function updateShoot(dt, body, ctrl, pool) {
     if (fireCooldown > 0) fireCooldown--;
+
+    fireHeat = Math.max(0, fireHeat - (jammed ? FIRE_JAM_COOL_PER_FRAME : FIRE_HEAT_COOL_PER_FRAME));
+    if (jammed) {
+      if (fireHeat <= 0) jammed = false;
+      else return;   /* TUTUKLUK surerken tetik TAMAMEN etkisiz */
+    }
+
     if (!pool) return;
     if (!(ctrl.verbDown || ctrl.verbPressed) || fireCooldown > 0) return;
     const dir = body.facing < 0 ? -1 : 1;
@@ -249,6 +286,9 @@ export function createVerbSystem() {
     fireCooldown = FIRE_COOLDOWN;
     firedThisFrame = true;
     lastUsed = VERB.SHOOT;
+
+    fireHeat = Math.min(FIRE_HEAT_MAX, fireHeat + FIRE_HEAT_PER_SHOT);
+    if (fireHeat >= FIRE_HEAT_MAX) { jammed = true; justJammed = true; }
   }
 
   function setTrail(on) { trailActive = !!on; }
@@ -259,6 +299,7 @@ export function createVerbSystem() {
     wastedVerb = false;
     placedThisFrame = false;
     firedThisFrame = false;
+    justJammed = false;
 
     if (isUnlocked(VERB.REWRITE)) updateRewrite(dt, body, ctrl, map);
     else if (ctrl.groundPressed) wastedGround = true;   /* henuz acilmadi */
@@ -279,6 +320,7 @@ export function createVerbSystem() {
      * nesneleri yeniden kullanildigi icin kalici kirlilik birakiyordu. */
     for (let k = 0; k < MAX_PENDING; k++) clearSlot(lastMap, k);
     fireCooldown = 0;
+    fireHeat = 0; jammed = false; justJammed = false;
     active = VERB.NONE; lastUsed = VERB.NONE;
     wastedGround = false; wastedVerb = false;
     placedThisFrame = false; firedThisFrame = false; trailActive = false;
@@ -292,6 +334,10 @@ export function createVerbSystem() {
     get meterMax() { return REWRITE_METER_MAX; },
     get fireCooldown() { return fireCooldown; },
     get fireCooldownMax() { return FIRE_COOLDOWN; },
+    get fireHeat() { return fireHeat; },
+    get fireHeatMax() { return FIRE_HEAT_MAX; },
+    get jammed() { return jammed; },
+    get justJammed() { return justJammed; },
     get wastedGround() { return wastedGround; },
     get wastedVerb() { return wastedVerb; },
     get placedThisFrame() { return placedThisFrame; },

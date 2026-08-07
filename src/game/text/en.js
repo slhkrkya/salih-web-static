@@ -12,7 +12,7 @@ export default {
     connecting: "LOADING",
     pickStage: "PICK A STAGE", locked: "LOCKED", cancel: "CANCEL",
     controls: "CONTROLS", pips: "SKILLS",
-    boss: "BOSS", shootAt: "SHOOT IT", shielded: "SHIELD IS UP",
+    boss: "BOSS", shootAt: "SHOOT IT", shielded: "SHIELD IS UP", jammed: "JAMMED",
     atk: {
       rain: "SHELL RAIN", volley: "FLAT VOLLEY", summon: "CALLING A HUNTER",
       aimed: "TAKING AIM", wall: "BUILDING A WALL", dash: "CHARGING AT YOU", net: "SKY NET"
@@ -45,7 +45,7 @@ export default {
   controls: [
     "A D or arrow keys: run",
     "SPACE, W or UP: jump",
-    "J or SHIFT: shoot, hold it to keep firing",
+    "J or SHIFT: shoot, hold it too long and it jams",
     "Q: lay ground ahead (while on the ground)",
     "P or ESC: pause",
     "M: map and stage select, T: touch"

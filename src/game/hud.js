@@ -20,6 +20,8 @@
  *     groundUnlocked, shootUnlocked,
  *     verbMeter, verbMeterMax,   // ZEMİN YAP metresi
  *     fireCooldown, fireCooldownMax,  // ATEŞ ET beklemesi
+ *     fireHeat, fireHeatMax,    // ATEŞ ET isi metresi
+ *     jammed,                  // ATEŞ ET tavana vurup TUTUKLUK yapti mi
  *     verbFlash, groundFlash,   // >0 ise "sonucsuz basis" cercevesi
  *     rateBump,         // null | {frames, amount} — orandaki son degisim
  *     commits, commitsTotal,     // n/24
@@ -35,7 +37,7 @@ import { formatTime } from "./speedrun.js";
 
 const SLOT_INK = 0, SLOT_BG = 1, SLOT_SURFACE = 2, SLOT_SURFACE_SOFT = 3,
       SLOT_INK_SOFT = 4, SLOT_ACCENT = 5, SLOT_SECONDARY = 6, SLOT_LED = 7,
-      SLOT_HAZARD = 14, SLOT_LIGHT = 11;
+      SLOT_SHADOW = 10, SLOT_HAZARD = 14, SLOT_LIGHT = 11;
 
 const PIP_ORDER = ["rewrite", "shell", "split", "seal", "hook", "prefilter",
                    "trail", "anchor", "second", "fork", "remote", "topk"];
@@ -112,8 +114,18 @@ export function createHud(font, i18n) {
   function abilityRow(ctx, x, y, w, h, o) {
     ctx.fillStyle = "#212a52";
     ctx.fillRect(x, y, w, h);
-    const label = o.unlocked ? (o.key ? o.name + " (" + o.key + ")" : o.name) : "—";
-    if (font) font.drawCentered(ctx, label, x + w / 2, y + 1, o.unlocked ? SLOT_LIGHT : SLOT_INK_SOFT, 1);
+
+    /* TUTUKLUK: K6 (renk tek basina anlam tasimaz) — burada UC isaret:
+     * (1) renk (HAZARD), (2) golge-ofset kopya etiket, (3) kesikli cerceve
+     * (asagida). "Sonucsuz basis" flasinin DUZ cercevesiyle karismasin diye
+     * TUTUKLUK cercevesi kasitli olarak kesikli cizilir. */
+    const jammed = !!o.jammed;
+    const label = jammed ? o.jammedName
+      : o.unlocked ? (o.key ? o.name + " (" + o.key + ")" : o.name) : "—";
+    if (font) {
+      if (jammed) font.drawCentered(ctx, label, x + w / 2 + 1, y + 2, SLOT_SHADOW, 1);
+      font.drawCentered(ctx, label, x + w / 2, y + 1, jammed ? SLOT_HAZARD : (o.unlocked ? SLOT_LIGHT : SLOT_INK_SOFT), 1);
+    }
 
     if (o.unlocked && o.segments > 0) {          /* ZEMİN YAP metresi */
       const segW = (w - 8) / o.segments;
@@ -121,6 +133,15 @@ export function createHud(font, i18n) {
         ctx.fillStyle = i < o.filled ? "#58c4ff" : "#3a3f5c";
         ctx.fillRect(x + 4 + i * segW, y + h - 4, segW - 2, 3);
       }
+    } else if (o.unlocked && o.heatMax > 0) {
+      /* ATEŞ ET: bu cubuk artik "hazir mi" degil ISI SEVIYESI gosterir —
+       * atislar arasi bekleme (12 kare) goze okunamayacak kadar kisa ama
+       * ISI'nin birikip TUTUKLUGA goturmesi gercek bir karar noktasidir. */
+      const pct = Math.min(1, o.heat / o.heatMax);
+      ctx.fillStyle = "#3a3f5c";
+      ctx.fillRect(x + 4, y + h - 4, w - 8, 3);
+      ctx.fillStyle = jammed ? "#ff3e7a" : (pct > 0.7 ? "#e8b786" : "#58c4ff");
+      ctx.fillRect(x + 4, y + h - 4, Math.round((w - 8) * pct), 3);
     } else if (o.unlocked && o.cooldownMax > 0) {
       /* ATEŞ ET: cubuk DOLARAK hazir oldugunu soyler. Bosalan bir cubuk
        * "kaynagim bitiyor" gibi okunuyordu; burada dogru okuma "tekrar
@@ -131,7 +152,15 @@ export function createHud(font, i18n) {
       ctx.fillStyle = o.cooldown > 0 ? "#e8b786" : "#38e27c";
       ctx.fillRect(x + 4, y + h - 4, Math.round((w - 8) * ready), 3);
     }
-    if (o.flash > 0) {                            /* sonucsuz basis */
+
+    if (jammed) {
+      ctx.save();
+      ctx.setLineDash([2, 2]);
+      ctx.strokeStyle = "#ff3e7a";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.restore();
+    } else if (o.flash > 0) {                    /* sonucsuz basis */
       ctx.strokeStyle = "#ff3e7a";
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
@@ -147,8 +176,10 @@ export function createHud(font, i18n) {
     ctx.fillRect(x - 1, y - 1, w + 2, rowH * 2 + 4);
 
     abilityRow(ctx, x, y, w, rowH, {
-      name: i18n.lex("verb.shoot"), key: s.verbKey, unlocked: s.shootUnlocked,
-      cooldown: s.fireCooldown, cooldownMax: s.fireCooldownMax, flash: s.verbFlash
+      name: i18n.lex("verb.shoot"), jammedName: i18n.lex("jammed"),
+      key: s.verbKey, unlocked: s.shootUnlocked,
+      cooldown: s.fireCooldown, cooldownMax: s.fireCooldownMax, flash: s.verbFlash,
+      heat: s.fireHeat, heatMax: s.fireHeatMax, jammed: s.jammed
     });
     abilityRow(ctx, x, y + rowH + 2, w, rowH, {
       name: i18n.lex("verb.rewrite"), key: s.groundKey, unlocked: s.groundUnlocked,

@@ -497,6 +497,9 @@ dialog:focus-visible { outline: none; }
   font-family: var(--font-mono);
   font-size: 1rem;
   margin: 0 0 4px;
+  /* Baslik her zaman iki satirlik yer tutar (kirpilmaz — proje adi tam gorunur).
+     Kapali kartlarin izgarada ayni yuksekligi tutmasi icin gereken zemin. */
+  min-height: 3em;
 }
 .card-meta {
   font-size: 0.78rem;
@@ -521,7 +524,23 @@ dialog:focus-visible { outline: none; }
 }
 .status-badge.new { background: var(--led); color: #06210f; }
 .status-badge.locked { background: var(--surface-soft); color: var(--ink-soft); }
-.card-summary-text { margin: 6px 0 4px; font-size: 0.9rem; }
+/* Kapali kartta ozet tam uc satir: kisa ozet ucuncu satiri bos tutar, uzun ozet
+   ucuncu satirda kirpilir. Boylece izgara satirlari hizali kalir; tam metin kart
+   acilinca gorunur (asagidaki [open] kurali). */
+.card-summary-text {
+  margin: 6px 0 4px;
+  font-size: 0.9rem;
+  min-height: calc(3 * 1.5em);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.project-card[open] .card-summary-text {
+  display: block;
+  -webkit-line-clamp: unset;
+  min-height: 0;
+}
 .details-toggle-hint {
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -537,7 +556,13 @@ dialog:focus-visible { outline: none; }
   flex-direction: column;
   gap: 6px;
 }
-.card-link-row { margin-top: 10px; }
+.card-link-row {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
 .card-link {
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -1137,22 +1162,23 @@ var content = {
         "workBadge": "ÜRETİMDE — KOD ÖZEL"
       },
       "openSourceLinkLabel": "GitHub'da görüntüle",
+      "demoLinkLabel": "Canlı demoyu aç",
       "detailsToggleLabel": "Detaylar",
       "projects": [
         {
           "id": "planora",
           "title": "Planora — Mekan/Etkinlik Rezervasyon Pazaryeri",
-          "meta": "Temmuz 2026 – Halen · 3 geliştirici + 1 PM",
+          "meta": "Temmuz–Ağustos 2026 · 3 geliştirici + 1 PM",
           "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
           "techBadges": ["SEO Automation", "Slug Routing", "GitLab CI/CD"],
           "tech": [".NET 9", "Angular 20", "EF Core", "CQRS", "MediatR", "GitLab CI/CD", "JSON-LD", "ffmpeg"],
-          "summary": "Bu mekan/etkinlik rezervasyon pazaryerinde proje yöneticisi olarak 3 kişilik geliştirici ekibini yönetiyorum; SEO altyapısını ve GUID'den slug'a public URL mimarisini uçtan uca ben kurdum.",
+          "summary": "Bu mekan/etkinlik rezervasyon pazaryerinde proje yöneticisi olarak 3 kişilik geliştirici ekibini yönettim; SEO altyapısını ve GUID'den slug'a public URL mimarisini uçtan uca ben kurdum.",
           "details": [
             "Projeyi Jira üzerinden 3 kişilik ekibe task açarak yönettim ve code review süreçlerinin sahipliğini üstlendim.",
             "Merkezi bir SeoService ile title, meta ve Open Graph etiketlerini otomatik hale getirdim; özel paylaşım görseli ve otomatik güncellenen sitemap.xml'i uçtan uca kurdum.",
-            "Public sayfalardaki GUID'li URL'leri SEO uyumlu, okunaklı slug yapısına taşıdım; rezervasyon gibi iç işlemler teknik kimlikleri korumaya devam ediyor."
+            "Public sayfalardaki GUID'li URL'leri SEO uyumlu, okunaklı slug yapısına taşıdım; rezervasyon gibi iç işlemleri ise teknik kimliklere dokunmadan bıraktım."
           ],
-          "link": { "type": "locked" }
+          "link": { "type": "locked", "demoUrl": "https://planora.arcacloud.com.tr/" }
         },
         {
           "id": "yoder",
@@ -1217,7 +1243,7 @@ var content = {
         {
           "id": "cvuyum",
           "title": "CVUyum — İlana Uyarlanan CV Üretici",
-          "meta": "FastAPI + Next.js 16 · Kişisel proje · Aktif geliştirme",
+          "meta": "FastAPI + Next.js 16 · Kişisel proje",
           "tags": ["backend", "frontend", "aiml", "architectureSecurity", "openSource"],
           "badge": "newActive",
           "techBadges": ["FastAPI", "Next.js 16", "Qdrant"],
@@ -1229,6 +1255,21 @@ var content = {
             "Kasten yalan söyleyen adversarial LLM ikizlerini gerçek sevkiyat hattından geçirdim; 419 backend ve 21 frontend testi tek bir ağ çağrısı yapmadan koşuyor."
           ],
           "link": { "type": "github", "url": "https://github.com/slhkrkya/cvuyum" }
+        },
+        {
+          "id": "techbase",
+          "title": "TechBase — SEO Odaklı İçerik Yönetim Sistemi",
+          "meta": "Payload CMS · Kişisel prototip",
+          "tags": ["backend", "frontend", "architectureSecurity", "openSource"],
+          "techBadges": ["Payload CMS", "Next.js 16", "SEO"],
+          "tech": ["Next.js", "React", "TypeScript", "Tailwind CSS", "React Server Components", "Payload CMS", "PostgreSQL", "JSON-LD", "RBAC", "HttpOnly/SameSite Cookie", "Rate Limiting", "Vercel"],
+          "summary": "WordPress'in her istekte PHP çalıştıran modelini bırakıp düzenleme zamanını yayın zamanından ayıran bir CMS yazdım: içerik Payload admininde bloklarla kuruluyor, PostgreSQL'de duruyor, public tarafta ise sunucuda render edilmiş HTML olarak çıkıyor — arama motorunun JavaScript çalıştırmasına gerek kalmıyor.",
+          "details": [
+            "Gutenberg tarzı sekiz bloğu (Hero, RichText, Image, CTA, FAQ, Code, RelatedPosts, Quote) tip güvenli tek bir BlockRenderer haritasından dağıttım: yeni bloğu haritaya eklemeyi unutmak derleme hatası veriyor, bilinmeyen tip sayfayı çökertmiyor; yayınla dendiğinde Payload hook'u araya webhook koymadan revalidatePath ile yalnızca ilgili path'i tazeliyor.",
+            "SEO'yu sonradan eklenen etiketler değil render modelinin kendisi olarak kurdum: içerik ilk HTML yanıtında geliyor, canonical ve OpenGraph metadata generateMetadata ile üretiliyor, Article/FAQPage/Breadcrumb JSON-LD şemaları ve sitemap dinamik çıkıyor.",
+            "Taslak gizliliğini frontend'de saklamak yerine veritabanı sorgusundaki access control'e taşıdım; admin/editör RBAC'ını field-level access ile pekiştirdim (editör kendini admin'e yükseltemiyor), preview girişini imzalı secret + oturum doğrulaması + open-redirect kontrolüyle kapattım ve medya yüklemede SVG'yi allowlist dışında bıraktım."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/techbase" }
         },
         {
           "id": "ai-cpp",
@@ -1320,12 +1361,12 @@ var content = {
       "heading": "Envanter",
       "subheading": "Teknoloji adı değil, kanıt: her etikete tıkla, onu kullandığım projeye git.",
       "tabs": {
-        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation", "Python", "FastAPI", "SQLAlchemy", "Alembic"] },
-        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components", "Next.js", "React"] },
+        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation", "Python", "FastAPI", "SQLAlchemy", "Alembic", "Payload CMS"] },
+        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components", "Next.js", "React", "React Server Components", "JSON-LD"] },
         "architectureSecurity": { "label": "Mimari ve Güvenlik", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log", "argon2"] },
         "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Qdrant", "Multi-Agent Orchestration", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
         "databases": { "label": "Veritabanları", "items": ["PostgreSQL", "SQL Server", "pgvector", "Qdrant"] },
-        "tools": { "label": "Araçlar", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Agile/Scrum"] }
+        "tools": { "label": "Araçlar", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Vercel", "Agile/Scrum"] }
       }
     },
     "journey": {
@@ -1344,7 +1385,7 @@ var content = {
             "Multi-tenant SaaS ürünleri, bir AI agent platformu ve üçüncü taraf entegrasyonlar üzerinde uçtan uca full-stack geliştirme yapıyorum.",
             "Üretim ortamında CORS yapılandırmasından FileZilla ile deploy'a kadar yayına alma sürecini sahipleniyorum.",
             "Şirket içi chatbot widget mimarisini sıfırdan kurup uçtan uca sahiplendim.",
-            "Temmuz 2026'dan itibaren Planora projesinde 4 kişilik ekipte proje yöneticiliği yapıyorum."
+            "Temmuz–Ağustos 2026'da Planora projesinde 4 kişilik ekipte proje yöneticiliği yaptım."
           ]
         },
         {
@@ -1463,22 +1504,23 @@ var content = {
       },
       "badges": { "newActive": "NEW / ACTIVE", "workBadge": "IN PRODUCTION — CODE PRIVATE" },
       "openSourceLinkLabel": "View on GitHub",
+      "demoLinkLabel": "Open live demo",
       "detailsToggleLabel": "Details",
       "projects": [
         {
           "id": "planora",
           "title": "Planora — Venue/Event Booking Marketplace",
-          "meta": "July 2026 – Present · 3 developers + 1 PM",
+          "meta": "July–August 2026 · 3 developers + 1 PM",
           "tags": ["backend", "frontend", "architectureSecurity", "workProjects"],
           "techBadges": ["SEO Automation", "Slug Routing", "GitLab CI/CD"],
           "tech": [".NET 9", "Angular 20", "EF Core", "CQRS", "MediatR", "GitLab CI/CD", "JSON-LD", "ffmpeg"],
-          "summary": "Lead the 3-developer team as project manager on this venue/event booking marketplace, and built its SEO layer and end-to-end GUID-to-slug public URL migration.",
+          "summary": "Led the 3-developer team as project manager on this venue/event booking marketplace, and built its SEO layer and end-to-end GUID-to-slug public URL migration.",
           "details": [
             "Managed the project by assigning tasks to a 3-person team through Jira and owned the code review process.",
             "Built a central SeoService that automates titles, meta tags, and Open Graph data; shipped a custom share image and an auto-updating sitemap.xml end to end.",
-            "Moved public pages from GUID-based URLs to clean, SEO-friendly slugs, while internal operations like reservations still use the technical IDs."
+            "Moved public pages from GUID-based URLs to clean, SEO-friendly slugs, and left internal operations like reservations on the technical IDs untouched."
           ],
-          "link": { "type": "locked" }
+          "link": { "type": "locked", "demoUrl": "https://planora.arcacloud.com.tr/" }
         },
         {
           "id": "yoder",
@@ -1528,7 +1570,7 @@ var content = {
         {
           "id": "ays",
           "title": "AYS — Residence/AWP Management System",
-          "meta": "September–December 2025 · Internship · 3 people",
+          "meta": "Sep–Dec 2025 · Internship · 3 people",
           "tags": ["backend", "frontend", "workProjects"],
           "techBadges": [".NET", "Angular", "Hangfire"],
           "tech": [".NET", "Angular", "MSSQL", "Hangfire"],
@@ -1543,7 +1585,7 @@ var content = {
         {
           "id": "cvuyum",
           "title": "CVUyum — Job-Tailored CV Generator",
-          "meta": "FastAPI + Next.js 16 · Personal project · Active development",
+          "meta": "FastAPI + Next.js 16 · Personal project",
           "tags": ["backend", "frontend", "aiml", "architectureSecurity", "openSource"],
           "badge": "newActive",
           "techBadges": ["FastAPI", "Next.js 16", "Qdrant"],
@@ -1555,6 +1597,21 @@ var content = {
             "Ran adversarial LLM doubles that lie on purpose through the real shipping pipeline; 419 backend and 21 frontend tests execute without a single network call."
           ],
           "link": { "type": "github", "url": "https://github.com/slhkrkya/cvuyum" }
+        },
+        {
+          "id": "techbase",
+          "title": "TechBase — SEO-Focused Content Management System",
+          "meta": "Payload CMS · Personal prototype",
+          "tags": ["backend", "frontend", "architectureSecurity", "openSource"],
+          "techBadges": ["Payload CMS", "Next.js 16", "SEO"],
+          "tech": ["Next.js", "React", "TypeScript", "Tailwind CSS", "React Server Components", "Payload CMS", "PostgreSQL", "JSON-LD", "RBAC", "HttpOnly/SameSite Cookie", "Rate Limiting", "Vercel"],
+          "summary": "Built a CMS that drops WordPress's run-PHP-on-every-request model and separates editing time from publishing time: content is assembled from blocks in the Payload admin, stored in PostgreSQL, and served publicly as server-rendered HTML — a crawler never has to execute JavaScript.",
+          "details": [
+            "Dispatched eight Gutenberg-style blocks (Hero, RichText, Image, CTA, FAQ, Code, RelatedPosts, Quote) through a single type-safe BlockRenderer map: forgetting to register a new block is a compile error and an unknown type never crashes the page; on publish, the Payload hook calls revalidatePath directly instead of an HTTP webhook, refreshing only the affected path.",
+            "Treated SEO as the render model itself rather than tags bolted on afterwards: content ships in the first HTML response, canonical and OpenGraph metadata come from generateMetadata, and the Article/FAQPage/Breadcrumb JSON-LD schemas plus the sitemap are generated dynamically.",
+            "Moved draft privacy out of the frontend and into access control on the database query; hardened admin/editor RBAC with field-level access so an editor can't promote themselves to admin, gated preview behind a signed secret with session verification and an open-redirect check, and kept SVG off the media upload allowlist."
+          ],
+          "link": { "type": "github", "url": "https://github.com/slhkrkya/techbase" }
         },
         {
           "id": "ai-cpp",
@@ -1646,12 +1703,12 @@ var content = {
       "heading": "Inventory",
       "subheading": "Not just a label — proof: click a skill and jump to the project that used it.",
       "tabs": {
-        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation", "Python", "FastAPI", "SQLAlchemy", "Alembic"] },
-        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components", "Next.js", "React"] },
+        "backend": { "label": "Backend", "items": [".NET 9", "ASP.NET Core", "C#", "EF Core", "MediatR", "CQRS", "Clean Architecture", "Hangfire", "SignalR", "FluentValidation", "Python", "FastAPI", "SQLAlchemy", "Alembic", "Payload CMS"] },
+        "frontend": { "label": "Frontend", "items": ["Angular", "TypeScript", "RxJS", "PrimeNG", "Tailwind CSS", "Web Components", "Next.js", "React", "React Server Components", "JSON-LD"] },
         "architectureSecurity": { "label": "Architecture & Security", "items": ["Multi-Tenant SaaS", "JWT", "HttpOnly/SameSite Cookie", "RBAC", "PermissionGuard", "Rate Limiting", "Audit Log", "argon2"] },
         "aiml": { "label": "AI/ML", "items": ["RAG", "pgvector", "Qdrant", "Multi-Agent Orchestration", "Microsoft.Agents.AI", "Microsoft.Extensions.AI", "ModelContextProtocol", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "STT/TTS", "SIPSorcery", "Python", "PyTorch", "BiLSTM", "Hugging Face"] },
         "databases": { "label": "Databases", "items": ["PostgreSQL", "SQL Server", "pgvector", "Qdrant"] },
-        "tools": { "label": "Tools", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Agile/Scrum"] }
+        "tools": { "label": "Tools", "items": ["Git", "GitLab", "Jira", "MS Project", "Docker", "FileZilla", "AWS EC2/RDS", "Vercel", "Agile/Scrum"] }
       }
     },
     "journey": {
@@ -1670,7 +1727,7 @@ var content = {
             "Build full-stack, end to end, across multi-tenant SaaS products, an AI agent platform, and third-party integrations.",
             "Own production deployment, from CORS configuration to shipping releases via FileZilla.",
             "Built the in-house chatbot widget architecture from scratch and own it end to end.",
-            "Since July 2026, lead project management for Planora with a four-person team."
+            "Led project management for Planora with a four-person team from July to August 2026."
           ]
         },
         {
@@ -2506,6 +2563,18 @@ function buildProjectCards() {
       var lockBadge = makeEl("span", "status-badge locked");
       bindText(lockBadge, function (l) { return get(content[l], "projectShelf.badges.workBadge"); });
       linkRow.appendChild(lockBadge);
+    }
+    /* Kodu ozel olan is projesinin canli bir surumu varsa demo linki kilit
+       badge'inin yanina gelir — link.type'i degistirmeye gerek yok, demoUrl
+       "github" tipinde de calisir. */
+    if (p.link.demoUrl) {
+      var demo = document.createElement("a");
+      demo.className = "card-link";
+      demo.href = p.link.demoUrl;
+      demo.target = "_blank";
+      demo.rel = "noopener noreferrer";
+      bindText(demo, function (l) { return "↗ " + get(content[l], "projectShelf.demoLinkLabel"); });
+      linkRow.appendChild(demo);
     }
     card.appendChild(linkRow);
 

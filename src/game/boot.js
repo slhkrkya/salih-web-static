@@ -841,7 +841,12 @@ export function boot(canvas, opts) {
      * hizlanma sansi birakmadan yakaliyordu). Yakalayinca GENIS bir tampon +
      * kisa bir "nefes" penceresi verilir. */
     if (pushWallGrace > 0) { pushWallGrace--; return; }
-    pushWallX += worldCfg().maxSpeed * 0.55;
+    /* 0.55 -> 0.66 -> 0.71 -> 0.75: oyun testi — duvar tepe hizin BELIRGIN
+     * altinda kaldigi surece (bkz. yukaridaki not) guvenli, ama 0.55'te
+     * oyuncunun COK gerisinde kalip gorsel gerginligi kaybediyordu. 0.75 hala
+     * 0.85'in (kilitlenmeye yol acan deger) altinda — araya biraz daha da
+     * yakin kalir. */
+    pushWallX += worldCfg().maxSpeed * 0.75;
     /* Geri cekme/nefes penceresi artik triggerRevert()'in kendisinde, HANGI
      * sebeple olursa olsun (bkz. o fonksiyondaki not) — burada tekrarlanmaz. */
     if (body.x < pushWallX + 6) triggerRevert();
@@ -2042,6 +2047,7 @@ export function boot(canvas, opts) {
       if (verbs.wastedVerb) verbFlashFrames = VERB_FLASH_FRAMES;
       if (verbs.placedThisFrame) audio.play("verb-rewrite");
       if (verbs.firedThisFrame) audio.play("shoot");
+      if (verbs.justJammed) audio.play("jam");
 
       Enemies.update(pool, dt, body, wd.map, () => {
         const floor = currentWorld === 1 ? RATE_V0.floor.w1 : currentWorld === 6 ? RATE_V0.floor.w6 : rate;
@@ -2319,6 +2325,9 @@ export function boot(canvas, opts) {
         verbMeterMax: verbs.meterMax,
         fireCooldown: verbs.fireCooldown,
         fireCooldownMax: verbs.fireCooldownMax,
+        fireHeat: verbs.fireHeat,
+        fireHeatMax: verbs.fireHeatMax,
+        jammed: verbs.jammed,
         verbFlash: verbFlashFrames,
         groundFlash: groundFlashFrames,
         commits: cp.commits,
@@ -2825,7 +2834,8 @@ export function boot(canvas, opts) {
         gameFinished, perfTier: perf.tier, telemetry: telemetry.summary(),
         revertTimer, checkpointX, checkpointY,
         pushWallX, pushWallGrace, ghostPlaying: ghost.isPlaying, ghostGrace,
-        ghostX: ghostRenderX, pips: save.pips
+        ghostX: ghostRenderX, pips: save.pips,
+        fireHeat: verbs.fireHeat, fireHeatMax: verbs.fireHeatMax, jammed: verbs.jammed
       };
     }
   };
