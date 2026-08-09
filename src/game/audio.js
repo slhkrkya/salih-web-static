@@ -25,7 +25,8 @@
  *                                     "telegraph"|"window"|"obey"|"drain"|
  *                                     "verb-rewrite"|"merge"|"shoot"|
  *                                     "hit"|"block"|"hunter"|
- *                                     "crack"|"collapse"|"dash"|"wall"|"jam"
+ *                                     "crack"|"collapse"|"dash"|"wall"|"jam"|
+ *                                     "shield"
  *   audio.startDrone()             -> surekli alcak drone baslar (idempotent)
  *   audio.stopDrone()
  *   audio.setDroneRate(rateInt)    -> HER karede degil, rate degistiginde cagir
@@ -113,6 +114,10 @@ export function createAudio() {
     /* TUTUKLUK: silahin ISINIP kilitlendigi an — "shoot"un tersi bir kontur,
      * kisa ve YUKSELEN degil ALCALAN, kulak "artik atamiyorum"u aninda anlasin. */
     "jam": () => beep(220, 200, { wave: "square", slideTo: 60, gain: 0.2 }),
+    /* KALKAN acilisi: YUKSELEN ve yumusak (triangle) — "jam"in tam tersi bir
+     * kontur. Yutulan mermi zaten "block" sesini calar, yani acilma ile
+     * durdurma kulakla ayrilir. */
+    "shield": () => beep(330, 180, { wave: "triangle", slideTo: 620, gain: 0.18 }),
     "hit": () => beep(240, 60, { wave: "square", slideTo: 180, gain: 0.2 }),
     "block": () => beep(180, 70, { wave: "sawtooth", slideTo: 140, gain: 0.14 }),
     "hunter": () => beep(420, 160, { wave: "sawtooth", slideTo: 90, gain: 0.2 }),

@@ -355,6 +355,16 @@ export function boot(canvas, opts) {
   const x1ArenaX1 = w6.x1BossTriggerX + X1_ARENA_R_DX;
   const x1Arena = { x0: x1ArenaX0, x1: x1ArenaX1, groundY: x1BossGroundY, walls: arenaWalls };
 
+  /* AYNA kafesi: SOL ve SAG kapinin arasi. Dovusun her kapisi (baslama, can
+   * goturme, saldiri, temas) BU tek testten gecer — ayri ayri esikler
+   * kullanilsaydi "patron uyandi ama vuramiyorum" gibi arada kalmis durumlar
+   * dogardi. Sinir olcusu `body.x`: asagidaki kapi kelepceleri de (bkz.
+   * updateMirror sonu) ayni alani ayni degiskenle kirpar, boylece "iceride
+   * sayilan" yer ile "iceride tutulan" yer BIREBIR ayni olur. */
+  function insideMirrorCage() {
+    return body.x >= x1ArenaX0 && body.x <= x1ArenaX1;
+  }
+
   /* ==========================================================================
    * W6 COMMIT NOKTALARI = segment sinirlari + w6.js'in ACIK taslari
    * ==========================================================================
@@ -405,9 +415,14 @@ export function boot(canvas, opts) {
   /* v0: REWRITE/SHELL pip ile ACILIR (W1 A1/E1) — Faz2'nin generic test
    * odasindaki "hep acik" varsayimi burada KALDIRILDI; W0'da oyuncunun
    * gercekten hicbir aracı yok (D-2/K1'in anlatisal temeli budur). */
-  const verbBitOf = { rewrite: SaveMod.PIP_BIT.REWRITE, shell: SaveMod.PIP_BIT.SHELL };
+  const verbBitOf = {
+    rewrite: SaveMod.PIP_BIT.REWRITE,
+    shell: SaveMod.PIP_BIT.SHELL,
+    seal: SaveMod.PIP_BIT.SEAL      /* KALKAN (bkz. save.js PIP_BIT notu) */
+  };
   if (save.verbs & (1 << SaveMod.PIP_BIT.REWRITE)) verbs.unlock(VERB.REWRITE);
   if (save.verbs & (1 << SaveMod.PIP_BIT.SHELL)) verbs.unlock(VERB.SHOOT);
+  if (save.verbs & (1 << SaveMod.PIP_BIT.SEAL)) verbs.unlock(VERB.SHIELD);
 
   let rate = save.ratio || RATE_V0.start;
   let checkpointX = w0.spawnX, checkpointY = w0.spawnY;
@@ -486,6 +501,7 @@ export function boot(canvas, opts) {
      * goturur) hicbir zaman yenilemez. Ayni emniyet kemeri 6/7'de de var. */
     verbs.unlock(VERB.REWRITE);
     verbs.unlock(VERB.SHOOT);
+    verbs.unlock(VERB.SHIELD);
     spawnWorldEnemies(w1);
     body.x = w1.bossTriggerX - 300; body.y = w1.spawnY;
     cam.setBounds(w1.map.pxW, w1.map.pxH);
@@ -495,6 +511,7 @@ export function boot(canvas, opts) {
     currentWorld = 6;
     verbs.unlock(VERB.REWRITE);
     verbs.unlock(VERB.SHOOT);
+    verbs.unlock(VERB.SHIELD);
     rate = RATE_V0.floor.w1;
     spawnWorldEnemies(w6);
     body.x = w6.spawnX; body.y = w6.spawnY;
@@ -505,6 +522,7 @@ export function boot(canvas, opts) {
     currentWorld = 7;
     verbs.unlock(VERB.REWRITE);
     verbs.unlock(VERB.SHOOT);
+    verbs.unlock(VERB.SHIELD);
     rate = RATE_V0.merge;
     spawnWorldEnemies(ep);
     body.x = ep.spawnX; body.y = ep.spawnY;
@@ -646,6 +664,7 @@ export function boot(canvas, opts) {
       save.pips |= (1 << bit);
       if (p.id === "rewrite") { verbs.unlock(VERB.REWRITE); save.verbs |= (1 << SaveMod.PIP_BIT.REWRITE); audio.play("verb-rewrite"); }
       else if (p.id === "shell") { verbs.unlock(VERB.SHOOT); save.verbs |= (1 << SaveMod.PIP_BIT.SHELL); audio.play("shoot"); }
+      else if (p.id === "seal") { verbs.unlock(VERB.SHIELD); save.verbs |= (1 << SaveMod.PIP_BIT.SEAL); audio.play("shield"); }
       else audio.play("commit");
       const idx = hud.PIP_ORDER.indexOf(p.id);
       const entry = i18n.data.pips[idx];
@@ -696,7 +715,7 @@ export function boot(canvas, opts) {
 
   const PIP_FLASH_FRAMES = 180;
   const VERB_FLASH_FRAMES = 12;
-  let verbFlashFrames = 0, groundFlashFrames = 0;
+  let verbFlashFrames = 0, groundFlashFrames = 0, shieldFlashFrames = 0;
   let pipFlashIndex = -1, pipFlashFrames = 0, pipFlashName = "";
   /* W0 (ogretici dunya) girisinde tus efsanesi ~12 s GERCEK oynanis boyunca
    * ekranin altinda durur — diyalog aciksa ne cizilir ne de sayaci isler. */
@@ -783,9 +802,19 @@ export function boot(canvas, opts) {
    * gecilecek bir yol HER ZAMAN vardir; dusen mermi havada VURULABILIR;
    * telegraf yere isaret koyar. Oyuncu bolgeden cikinca sayac sifirlanir —
    * arkadan sessizce mermi yagmaz. */
-  const RAIN_PERIOD = 96;
+  /* 96 -> 66: oyun testi — dalgalar arasi bosluk o kadar genisti ki koridor
+   * "bir dalgayi bekle, gec, dur, tekrar bekle" ritmine dusuyordu. 66 karede
+   * yagmur SUREKLI bir basinc olur; telegraf (34 kare) degismedi, yani her
+   * dalga hala isaretini onceden gosterir. */
+  const RAIN_PERIOD = 66;
   const RAIN_TELEGRAPH = 34;
-  const RAIN_HEIGHT = 200, RAIN_VY = 1.2, RAIN_GRAV = 0.10;
+  /* DUSUS HIZI (oyun testi: "cok yavas iniyor"). 1,2/0,10 ile 200 px ~52
+   * karede (0,87 s) katediliyordu — mermi isaretten sonra havada oyalaniyor,
+   * tehdit "dusuyor" degil "suzuluyor" gibi okunuyordu. 3,0/0,26 ile ayni
+   * mesafe ~29 karede (0,48 s) biter. ADALET BOZULMAZ: uyari telegraftan
+   * gelir (dusustan degil) ve o pencere ayni kaldi. Carpma anindaki hiz
+   * ~10,5 px/kare, mermi vurus kutusu 20 px — tunel gecisi mumkun degil. */
+  const RAIN_HEIGHT = 200, RAIN_VY = 3.0, RAIN_GRAV = 0.26;
 
   function rainColumnFalls(i, wave) { return ((i + wave) & 1) === 0; }
 
@@ -841,12 +870,13 @@ export function boot(canvas, opts) {
      * hizlanma sansi birakmadan yakaliyordu). Yakalayinca GENIS bir tampon +
      * kisa bir "nefes" penceresi verilir. */
     if (pushWallGrace > 0) { pushWallGrace--; return; }
-    /* 0.55 -> 0.66 -> 0.71 -> 0.75: oyun testi — duvar tepe hizin BELIRGIN
-     * altinda kaldigi surece (bkz. yukaridaki not) guvenli, ama 0.55'te
-     * oyuncunun COK gerisinde kalip gorsel gerginligi kaybediyordu. 0.75 hala
-     * 0.85'in (kilitlenmeye yol acan deger) altinda — araya biraz daha da
-     * yakin kalir. */
-    pushWallX += worldCfg().maxSpeed * 0.75;
+    /* 0.55 -> 0.66 -> 0.71 -> 0.75 -> 0.84: oyun testi — duvar tepe hizin
+     * BELIRGIN altinda kaldigi surece (bkz. yukaridaki not) guvenli, ama
+     * 0.55'te oyuncunun COK gerisinde kalip gorsel gerginligi kaybediyordu.
+     * 0.84 hala 0.85'in (kilitlenmeye yol acan deger) altinda ama ARTIK ONA
+     * COK YAKIN — oyuncu tepe hiza HEMEN cikmazsa (durgun-hizlanma) yakalanma
+     * riski gercek. */
+    pushWallX += worldCfg().maxSpeed * 0.84;
     /* Geri cekme/nefes penceresi artik triggerRevert()'in kendisinde, HANGI
      * sebeple olursa olsun (bkz. o fonksiyondaki not) — burada tekrarlanmaz. */
     if (body.x < pushWallX + 6) triggerRevert();
@@ -1007,6 +1037,10 @@ export function boot(canvas, opts) {
    * kutularinin adlari kullanilir (bkz. drawTouchHints). */
   function actionKeyName() { return input.touchActive ? "B" : i18n.lex("keyAction"); }
   function groundKeyName() { return input.touchActive ? "C" : i18n.lex("keyGround"); }
+  /* KALKAN'in dokunmatik karsiligi YOK (bkz. input.js recompute notu) — bu
+   * yuzden dokunmatikte tus adi bos birakilir: olmayan bir butonun harfini
+   * yazmak "nereye basacagim" sorusunu cevapsiz birakirdi. */
+  function shieldKeyName() { return input.touchActive ? "" : i18n.lex("keyShield"); }
 
   const snifferLabels = { name: "", shoot: "", blocked: "" };
   function snifferLabelPack() {
@@ -1046,12 +1080,17 @@ export function boot(canvas, opts) {
    * govdesiyle kesisimi burada, TEK yerde test edilir. Kalkanliyken damage()
    * "block" doner: mermi yine soner, ama ses/gorsel "sekti" der.
    * ========================================================================== */
-  function bossBoltHits(target) {
+  function bossBoltHits(target, forceBlock) {
     if (!target || target.isDefeated) return;
     for (let id = 0; id < pool.flags.length; id++) {
       if (!(pool.flags[id] & FLAG_ACTIVE) || pool.type[id] !== Enemies.TYPE.BOLT) continue;
       if (!target.hitTest(pool.x[id], pool.y[id])) continue;
-      const res = target.damage(1);
+      /* forceBlock: patron su an DOKUNULMAZ (AYNA'da kafesin disindan ates
+       * ediliyor). damage() HIC cagrilmaz, yani can degismez — ama mermi yine
+       * de soner ve "sekti" der. Sessizce icinden gecseydi oyuncu bunu bir
+       * HATA olarak okurdu; "vuruyorum ama gecmiyor" ise dogru cevaptir:
+       * iceri gir. */
+      const res = forceBlock ? "block" : target.damage(1);
       pool.free(id);
       if (res === "block") {
         audio.play("block");
@@ -1163,7 +1202,15 @@ export function boot(canvas, opts) {
 
   function updateOverrideBoss(dt) {
     if (currentWorld !== 6) return;
-    if (!overrideBoss && body.x >= w6.bossTriggerX) {
+    /* TETIK BIR ARALIK (AYNA'da zaten duzeltilmis olan hatanin AYNISI, burada
+     * acik kalmisti): tetigin UST SINIRI yoktu. Patronun "yenildi" durumu
+     * kayda yazilmadigi icin, YOKSAY'i gecip ILERIDEKI bir commit tasinda
+     * (5520 / 5744 / 6176) kaydeden ve sonra devam eden oyuncuda su oluyordu:
+     * patron yeniden doguyor, asagidaki gorunmez tutma alani da govdeyi
+     * ANINDA 3318'e — yani commit tasindan ~3000 px GERIYE — cekiyordu.
+     * Oyuncu kendi kayit noktasina bir daha hic donemeden dovuse geri
+     * surukleniyordu. Arenayi GECMIS bir govde artik patronu uyandirmaz. */
+    if (!overrideBoss && body.x >= w6.bossTriggerX && body.x <= w6ArenaHoldX) {
       overrideBoss = createOverride(w6BossX, w6BossY, pool,
         !!(save.settings && save.settings.balanced), w6Arena);
       sceneManager.playDialogue(bossIntro(i18n.data.bosses.override));
@@ -1217,7 +1264,7 @@ export function boot(canvas, opts) {
      * sag kapi da aninda oyuncuyu arenaya GERI CEKIYOR — cikilmis bir dovus
      * zorla tekrar ettiriliyordu. Tetik artik bir ARALIK: arenayi gecmis
      * olan bir govde patronu uyandirmaz. */
-    if (!mirrorBoss && body.x >= w6.x1BossTriggerX && body.x < x1ArenaX1) {
+    if (!mirrorBoss && insideMirrorCage()) {
       /* KOKLAYICI'daki ayni kilitlenme emniyeti: cani YALNIZ mermiyle inen bir
        * patronun onunde ATEŞ ET kilitliyse oyun BITIRILEMEZ. */
       if (!verbs.isUnlocked(VERB.SHOOT)) {
@@ -1243,6 +1290,53 @@ export function boot(canvas, opts) {
       }
       return;
     }
+
+    /* ======================================================================
+     * KAFES KURALI — dovus YALNIZCA iki kapinin arasinda yasar
+     * ======================================================================
+     * Eskiden patron `x1BossTriggerX`te (sol kapidan 20 px ONCE) uyaniyor ve
+     * o andan itibaren oyuncu NEREDE olursa olsun saldiriyor, can veriyordu.
+     * Iki sonucu vardi: (a) kapinin disindan, patronun erisemedigi bir yerden
+     * bedava ates edilebiliyordu; (b) OLUP kafesin DISINDAKI commit tasinda
+     * dirilen oyuncuya patron uzaktan saldirmaya devam ediyordu — dovusun
+     * "nerede basladigi" hic belli olmuyordu.
+     *
+     * Kural artik tek cumle: KAFESIN ICINDE DEGILSEN DOVUS YOKTUR.
+     *   - Patron kafese girilene kadar UYANMAZ (yukaridaki spawn kosulu).
+     *   - Disaridayken guncellenmez: saldirmaz, kalip isletmez, temas etmez.
+     *   - Disaridayken CAN GOTURULEMEZ: mermi soner ve "sekti" der.
+     *   - Olup kafes DISINDA dirilirsen dovus baslamis SAYILMAZ; can zaten
+     *     triggerRevert'te tam dolmustur, iceri tekrar girmek onu bastan
+     *     baslatir.
+     * Bu, "olup checkpointten dogunca da ayni davranis" istegini tek yerden
+     * karsilar: dirilis konumu kafesin icinde mi disinda mi — baska hicbir
+     * ozel durum yok. */
+    /* KAPILAR ONCE. Kafes FIZIKSEL bir seydir ve dovusten BAGIMSIZ islemek
+     * zorundadir; asagidaki "icerideyim" testi de bu kelepcelerin SONUCUNU
+     * okumali. (Ilk yazimda test kapilardan ONCE geliyordu ve iki kelepce de
+     * ULASILAMAZ hale gelmisti: teste gore zaten [x0,x1] arasindaydik, yani
+     * `body.x < x0` / `> x1` dallari hic calismiyordu — kafes oyuncuyu
+     * TUTMUYORDU, dovus sirasinda sola yuruyup cikmak ve dovusu bedavaya
+     * sifirlamak mumkun oluyordu.)
+     * Kapilarin contactTest'ten de ONCE olmasi ayrica eski bir hatayi
+     * yapisal olarak kapatir: triggerRevert() `mirrorLeftArmed`'i indirir;
+     * kapi mantigi ONDAN SONRA calissaydi govde henuz isinlanmadigi (hala
+     * iceride oldugu) icin bayragi TEKRAR kurar ve oyuncuyu dovuse geri
+     * cekerdi (olculdu: govde 6372'de takiliyordu, kayit tasi 6176'da). */
+    if (!mirrorLeftArmed && body.x >= x1ArenaX0) mirrorLeftArmed = true;
+    if (mirrorLeftArmed && body.x < x1ArenaX0) { body.x = x1ArenaX0; if (body.vx < 0) body.vx = 0; }
+    if (body.x > x1ArenaX1) { body.x = x1ArenaX1; if (body.vx > 0) body.vx = 0; }
+
+    if (!insideMirrorCage()) {
+      /* Buraya YALNIZCA "patron yasiyor ama oyuncu kafesin disinda" durumunda
+       * gelinir; pratikte tek yolu OLUP kafes disindaki bir commit tasinda
+       * dirilmektir (triggerRevert hem `reset()` hem `mirrorLeftArmed=false`
+       * yapar, yani yukaridaki sol kelepce de artik tutmaz). Icerideyken
+       * yuruyerek cikmak MUMKUN DEGIL — kapilar yukarida kirpiyor. */
+      bossBoltHits(mirrorBoss, true);   /* disaridan atis: yalniz "sekti" */
+      return;
+    }
+
     mirrorBoss.update(dt, body, (kind) => {
       if (kind === "attack") applyObey(RATE_V0.floor.w6);
       else if (kind === "dash") audio.play("dash");
@@ -1250,16 +1344,7 @@ export function boot(canvas, opts) {
       else if (kind === "spawn") audio.play("obey");
     });
     bossBoltHits(mirrorBoss);
-    /* KOŞU temasi revert'i BU FONKSIYONUN ICINDEN tetikler — fonksiyon
-     * basindaki `revertTimer > 0` korumasi bu yolu goremez. Tetikledigin
-     * karede DERHAL cik, yoksa asagidaki kapi mantigi calisir ve az once
-     * indirilen `mirrorLeftArmed`'i tekrar kurar (olculdu: govde 6372'de
-     * takiliyordu, kayit tasi 6176'da). */
     if (mirrorBoss.contactTest(body)) { triggerRevert(); return; }
-
-    if (!mirrorLeftArmed && body.x >= x1ArenaX0) mirrorLeftArmed = true;
-    if (mirrorLeftArmed && body.x < x1ArenaX0) { body.x = x1ArenaX0; if (body.vx < 0) body.vx = 0; }
-    if (body.x > x1ArenaX1) { body.x = x1ArenaX1; if (body.vx > 0) body.vx = 0; }
   }
 
   function tryMergePrompt() {
@@ -1392,7 +1477,7 @@ export function boot(canvas, opts) {
     ghostOriginX = 0; ghostRestartPending = false; ghostGrace = 0;
     exitLockHinted = false;
     pipFlashIndex = -1; pipFlashFrames = 0; pipFlashName = "";
-    rateBumpFrames = 0; rateBumpAmount = 0; verbFlashFrames = 0; groundFlashFrames = 0;
+    rateBumpFrames = 0; rateBumpAmount = 0; verbFlashFrames = 0; groundFlashFrames = 0; shieldFlashFrames = 0;
     introHintFrames = INTRO_HINT_FRAMES;
     maxWorldReached = 0;
     sceneManager.clearDialogue();
@@ -1442,6 +1527,7 @@ export function boot(canvas, opts) {
   function applySaveVerbs() {
     if (save.verbs & (1 << SaveMod.PIP_BIT.REWRITE)) verbs.unlock(VERB.REWRITE);
     if (save.verbs & (1 << SaveMod.PIP_BIT.SHELL)) verbs.unlock(VERB.SHOOT);
+    if (save.verbs & (1 << SaveMod.PIP_BIT.SEAL)) verbs.unlock(VERB.SHIELD);
   }
 
   function recomputeMaxWorld() {
@@ -1697,7 +1783,7 @@ export function boot(canvas, opts) {
     ghostOriginX = 0; ghostRestartPending = false; ghostGrace = 0;
     exitLockHinted = false;
     pipFlashIndex = -1; pipFlashFrames = 0; pipFlashName = "";
-    rateBumpFrames = 0; rateBumpAmount = 0; verbFlashFrames = 0; groundFlashFrames = 0;
+    rateBumpFrames = 0; rateBumpAmount = 0; verbFlashFrames = 0; groundFlashFrames = 0; shieldFlashFrames = 0;
     sceneManager.clearDialogue();   /* eski bolumun yarim balonu tasinmasin */
     fakeTiles.reset();   /* cokmus karolar kalici delik birakmasin */
     arenaWalls.reset();  /* orulu duvarlar da haritada kalmasin */
@@ -1709,7 +1795,7 @@ export function boot(canvas, opts) {
      * bosluğu, YOKSAY'in tap/hold dizisi). Bu bolumler zaten yalniz
      * ULASILMISSA secilebiliyor, yani pip'ler toplanmis demektir; yine de
      * debugStartWorld dalindaki ayni emniyet kemeri burada da vurulur. */
-    if (w === 6 || w === 7) { verbs.unlock(VERB.REWRITE); verbs.unlock(VERB.SHOOT); }
+    if (w === 6 || w === 7) { verbs.unlock(VERB.REWRITE); verbs.unlock(VERB.SHOOT); verbs.unlock(VERB.SHIELD); }
     /* EP'ye MERGE'siz girilirse bitis cizgisinde SaveMod.assertFinish()
      * (`finished && ratio !== 48`) FIRLATIRDI — MERGE oraninin kendisi
      * burada uygulanir (debugStartWorld === 7 ile ayni). */
@@ -2045,9 +2131,15 @@ export function boot(canvas, opts) {
       /* Sonucsuz basis: ilgili yuva kisa bir kirmizi cerceve atar. */
       if (verbs.wastedGround) groundFlashFrames = VERB_FLASH_FRAMES;
       if (verbs.wastedVerb) verbFlashFrames = VERB_FLASH_FRAMES;
+      if (verbs.wastedShield) shieldFlashFrames = VERB_FLASH_FRAMES;
       if (verbs.placedThisFrame) audio.play("verb-rewrite");
       if (verbs.firedThisFrame) audio.play("shoot");
       if (verbs.justJammed) audio.play("jam");
+      if (verbs.raisedThisFrame) {
+        audio.play("shield");
+        particles.burst(body.x + body.w * 0.5 + body.facing * 10, body.y + body.h * 0.5,
+                        Math.min(8, perf.particleBudget), SLOT.SECONDARY);
+      }
 
       Enemies.update(pool, dt, body, wd.map, () => {
         const floor = currentWorld === 1 ? RATE_V0.floor.w1 : currentWorld === 6 ? RATE_V0.floor.w6 : rate;
@@ -2065,6 +2157,24 @@ export function boot(canvas, opts) {
        * halde ayni karede yer degistiren bir hedefin ESKI konumuna gore karar
        * verilir ve hizli seylerde (AVCI, KIVILCIM) gorunur bir kayma olusur. */
       Enemies.boltHitTest(pool, onBoltEvent);
+
+      /* KALKAN, dusmanlar HAREKET ETTIKTEN sonra ve hazardHitTest'ten HEMEN
+       * ONCE yutar. Sira KRITIK: verbs.update() icinde yapsaydik mermi ayni
+       * karede kalkanin icine girip oyuncuya degebilir, kalkan acikken
+       * GERI AL yiyebilirdik. */
+      verbs.shieldAbsorb(pool, body);
+      const absorbed = verbs.absorbedThisFrame, dispersed = verbs.dispersedThisFrame;
+      if (absorbed > 0 || dispersed > 0) {
+        /* AVCI dagitmak ile mermi yutmak KULAKLA ayrilir: avci kendi
+         * "hunter" sesiyle gider (mermiyle dusurulmesiyle ayni ses), mermi
+         * "block" ile. Ikisi ayni karede olursa avci sesi kazanir — daha
+         * buyuk olay odur. */
+        audio.play(dispersed > 0 ? "hunter" : "block");
+        particles.burst(body.x + body.w * 0.5 + body.facing * verbs.shieldRadius * 0.6,
+                        body.y + body.h * 0.5,
+                        Math.min(6 * (absorbed + dispersed), perf.particleBudget),
+                        dispersed > 0 ? SLOT.ACCENT : SLOT.LED);
+      }
 
       const hazardId = Enemies.hazardHitTest(pool, body);
       if (hazardId !== -1) triggerRevert();
@@ -2088,6 +2198,7 @@ export function boot(canvas, opts) {
       if (pipFlashFrames > 0) pipFlashFrames--;
       if (rateBumpFrames > 0) rateBumpFrames--;
       if (verbFlashFrames > 0) verbFlashFrames--;
+      if (shieldFlashFrames > 0) shieldFlashFrames--;
       if (groundFlashFrames > 0) groundFlashFrames--;
       if (introHintFrames > 0 && currentWorld === 0) introHintFrames--;
       if (lieFrames > 0) lieFrames--;
@@ -2305,6 +2416,7 @@ export function boot(canvas, opts) {
       renderer.ctx.globalAlpha = revertFadeAlpha();
       salih.draw(renderer.ctx, body, rcx, rcy);
       renderer.ctx.restore();
+      drawShield(renderer.ctx, rcx, rcy);
       drawHotChannelCountdown(renderer.ctx, rcx, rcy);
 
       renderer.ctx.restore();
@@ -2328,6 +2440,12 @@ export function boot(canvas, opts) {
         fireHeat: verbs.fireHeat,
         fireHeatMax: verbs.fireHeatMax,
         jammed: verbs.jammed,
+        shieldKey: shieldKeyName(),
+        shieldUnlocked: verbs.isUnlocked(VERB.SHIELD),
+        shieldActive: verbs.shieldActive,
+        shieldCooldown: verbs.shieldCooldown,
+        shieldCooldownMax: verbs.shieldCooldownMax,
+        shieldFlash: shieldFlashFrames,
         verbFlash: verbFlashFrames,
         groundFlash: groundFlashFrames,
         commits: cp.commits,
@@ -2504,6 +2622,53 @@ export function boot(canvas, opts) {
     ctx.restore();
     const w = font.measure(name, 1);
     font.draw(ctx, name, left ? ax + 10 : ax - 10 - w, ay - 5, SLOT.HAZARD, 1);
+  }
+
+  /* KALKAN: baktigin yone acilan YARIM DAIRE. Geometri verbs.js'in
+   * shieldCovers() testiyle AYNI kaynaktan (merkez = govde merkezi, yaricap =
+   * verbs.shieldRadius, yon = body.facing) — cizilen yer ile KORUYAN yer
+   * birbirinden kayamaz.
+   * K6 (renk tek basina anlam tasimaz) uc sinyalle karsilanir:
+   *   1) renk  : SECONDARY dolgu + LED kenar
+   *   2) cerceve: kenar yayi KALIN ve kesintisiz cizilir (dolgudan ayri)
+   *   3) golge : ayni yayin 1 px asagi-disari kaydirilmis SHADOW kopyasi
+   * Sonmeden once son 12 karede saydamlik duser: pencerenin KAPANDIGI
+   * gorunur, "neden yedim" sorusu ekranda cevaplanir. */
+  function drawShield(ctx, camX, camY) {
+    const frames = verbs.shieldActive;
+    if (frames <= 0) return;
+    const r = verbs.shieldRadius;
+    const cx = Math.round(body.x + body.w * 0.5 - camX);
+    const cy = Math.round(body.y + body.h * 0.5 - camY);
+    const dir = body.facing < 0 ? -1 : 1;
+    /* Yarim daire: bakilan yonun tarafi. Sag icin -90..+90, sol icin +90..+270. */
+    const a0 = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+    const a1 = a0 + Math.PI;
+    const fade = Math.min(1, frames / 12);   /* son 12 karede soner */
+
+    ctx.save();
+    ctx.globalAlpha = 0.20 * fade;
+    ctx.fillStyle = palette.css[SLOT.SECONDARY];
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = 0.55 * fade;           /* golge kopyasi (3. sinyal) */
+    ctx.strokeStyle = palette.css[SLOT.SHADOW];
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx + dir, cy + 1, r, a0, a1);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.95 * fade;           /* kenar yayi (2. sinyal) */
+    ctx.strokeStyle = palette.css[SLOT.LED];
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.stroke();
+    ctx.restore();
   }
 
   /* SPRINT SONU kovalayan duvar (bulunan gercek eksik: pushWallX hicbir zaman
@@ -2815,7 +2980,8 @@ export function boot(canvas, opts) {
         scale: renderer.scale, lang: i18n.lang, dark, reduceMotion, audio: audioEnabled,
         paused: loop.isPaused(), destroyed, rate, scene: sceneManager.current,
         world: currentWorld, entityCount: pool.count, bossPhase: boss ? boss.phase : null,
-        bodyX: body.x, bodyY: body.y, dialogueActive: sceneManager.isDialogueActive(),
+        bodyX: body.x, bodyY: body.y, bodyFacing: body.facing,
+        dialogueActive: sceneManager.isDialogueActive(),
         overridePattern: overrideBoss ? overrideBoss.pattern : null,
         overrideHp: overrideBoss ? overrideBoss.hp : null,
         snifferHp: boss ? boss.hp : null,
@@ -2835,7 +3001,9 @@ export function boot(canvas, opts) {
         revertTimer, checkpointX, checkpointY,
         pushWallX, pushWallGrace, ghostPlaying: ghost.isPlaying, ghostGrace,
         ghostX: ghostRenderX, pips: save.pips,
-        fireHeat: verbs.fireHeat, fireHeatMax: verbs.fireHeatMax, jammed: verbs.jammed
+        fireHeat: verbs.fireHeat, fireHeatMax: verbs.fireHeatMax, jammed: verbs.jammed,
+        shieldActive: verbs.shieldActive, shieldCooldown: verbs.shieldCooldown,
+        shieldUnlocked: verbs.isUnlocked(VERB.SHIELD)
       };
     }
   };

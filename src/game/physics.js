@@ -193,6 +193,9 @@ export function createCtrl() {
     jumpDown: 0, jumpPressed: 0,
     verbDown: 0, verbPressed: 0,
     groundDown: 0, groundPressed: 0,
+    /* KALKAN (C). step() bunu OKUMAZ — fiil alanlari gibi yalniz verbs.js'e
+     * gider; burada durmasinin sebebi ctrl'in TEK bir yerden uretilmesi. */
+    shieldDown: 0, shieldPressed: 0,
     coyoteFrames: 0, jumpBufferFrames: 0
   };
 }

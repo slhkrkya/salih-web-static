@@ -53,8 +53,9 @@ export default {
     sent: "Listeye eklendi.",
     sendFailed: "Gönderilemedi, yerelde saklandı.",
     runAbort: "Koşuyu bırakmak için L.",
-    verb: { rewrite: "ZEMİN YAP", shoot: "ATEŞ ET" },
+    verb: { rewrite: "ZEMİN YAP", shoot: "ATEŞ ET", shield: "KALKAN" },
     pip: { trail: "SAĞLAM ZEMİN" },
+    keyShield: "C",
     f1seal: "F1 %83,81", ghost: "ESKİ HÂLİN"
   },
   /* Tus efsanesi (baslik ekrani + DURAKLAT + 1. bolum giris ipucu). */
@@ -63,6 +64,7 @@ export default {
     "BOŞLUK, W veya YUKARI: zıpla",
     "J/SHIFT: ateş et; sürekli tutarsan ısınıp tutukluk yapar",
     "Q: önüne zemin koy (yerdeyken)",
+    "C: kalkan aç (20 sn bekleme)",
     "P veya ESC: duraklat",
     "M: harita ve bölüm seçimi, T: dokunmatik"
   ],
@@ -153,10 +155,15 @@ export default {
     { id: "rewrite", name: "ZEMİN YAP", locked: "?", seal: "Yeni yetenek: Q ile önüne zemin koy." },
     { id: "shell", name: "ATEŞ ET", locked: "?", seal: "Yeni yetenek: J ile ateş et." },
     { id: "split", name: "PARÇALA", locked: "?", seal: null },
-    { id: "seal", name: "MÜHÜR", locked: "?", seal: null },
+    { id: "seal", name: "KALKAN", locked: "?", seal: "Yeni yetenek: C ile kalkan aç." },
     { id: "hook", name: "KANCA", locked: "?", seal: null },
     { id: "prefilter", name: "FİLTRE", locked: "?", seal: null },
-    { id: "trail", name: "SAĞLAM ZEMİN", locked: "?", seal: "Koyduğun zemin çok daha geç kayboluyor." },
+    /* SAĞLAM ZEMİN v0'da artik DOGMUYOR (yerini KALKAN aldi, bkz. verbs.js
+     * sapma 4). `seal` bu yuzden null: prose butcesi (57) YALNIZ ULASILABILIR
+     * satirlari saymali, yoksa sayac olu metni canli sanip butceyi sisirir.
+     * Geri getirilmek istenirse eski satir aynen suydu:
+     *   "Koyduğun zemin çok daha geç kayboluyor." */
+    { id: "trail", name: "SAĞLAM ZEMİN", locked: "?", seal: null },
     { id: "anchor", name: "ÇAPA", locked: "?", seal: null },
     { id: "second", name: "İKİNCİ ŞANS", locked: "?", seal: null },
     { id: "fork", name: "ÇATAL", locked: "?", seal: null },

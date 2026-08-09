@@ -22,7 +22,10 @@
  *     fireCooldown, fireCooldownMax,  // ATEŞ ET beklemesi
  *     fireHeat, fireHeatMax,    // ATEŞ ET isi metresi
  *     jammed,                  // ATEŞ ET tavana vurup TUTUKLUK yapti mi
- *     verbFlash, groundFlash,   // >0 ise "sonucsuz basis" cercevesi
+ *     shieldKey, shieldUnlocked,        // KALKAN tusu ("C")
+ *     shieldActive,                     // >0 ise kalkan su an ACIK
+ *     shieldCooldown, shieldCooldownMax,// KALKAN beklemesi (10 sn)
+ *     verbFlash, groundFlash, shieldFlash,  // >0 ise "sonucsuz basis" cercevesi
  *     rateBump,         // null | {frames, amount} — orandaki son degisim
  *     commits, commitsTotal,     // n/24
  *     pips,             // 12 bit bitmask, save.PIP_BIT sirasi
@@ -153,7 +156,11 @@ export function createHud(font, i18n) {
       ctx.fillRect(x + 4, y + h - 4, Math.round((w - 8) * ready), 3);
     }
 
-    if (jammed) {
+    if (o.litUp) {                                /* KALKAN su an ACIK */
+      ctx.strokeStyle = "#38e27c";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    } else if (jammed) {
       ctx.save();
       ctx.setLineDash([2, 2]);
       ctx.strokeStyle = "#ff3e7a";
@@ -167,13 +174,14 @@ export function createHud(font, i18n) {
     }
   }
 
-  /* Iki yetenek = iki satir; her satirda ADI, TUSU ve hazir olup olmadigi.
-   * ATEŞ ET ustte durur: dovusun ana fiili odur, goz once oraya dussun. */
+  /* Uc yetenek = uc satir; her satirda ADI, TUSU ve hazir olup olmadigi.
+   * ATEŞ ET ustte durur: dovusun ana fiili odur, goz once oraya dussun.
+   * KALKAN en altta: en seyrek kullanilan (10 sn bekleme) o. */
   function drawVerbSlot(ctx, s) {
     const w = 116, rowH = 15, x = VIEW_W - w - 6, y = 4;
 
     ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillRect(x - 1, y - 1, w + 2, rowH * 2 + 4);
+    ctx.fillRect(x - 1, y - 1, w + 2, rowH * 3 + 6);
 
     abilityRow(ctx, x, y, w, rowH, {
       name: i18n.lex("verb.shoot"), jammedName: i18n.lex("jammed"),
@@ -184,6 +192,15 @@ export function createHud(font, i18n) {
     abilityRow(ctx, x, y + rowH + 2, w, rowH, {
       name: i18n.lex("verb.rewrite"), key: s.groundKey, unlocked: s.groundUnlocked,
       segments: s.verbMeterMax, filled: s.verbMeter, flash: s.groundFlash
+    });
+    /* KALKAN cubugu DOLARAK hazir oldugunu soyler (ATEŞ ET'in eski
+     * mantigiyla ayni okuma: dolu = kullanabilirim). Kalkan ACIKKEN satir
+     * ayrica LED rengine doner — 0,8 saniyelik pencerenin ne zaman
+     * kapandigini oyuncu ekrandan gorsun. */
+    abilityRow(ctx, x, y + (rowH + 2) * 2, w, rowH, {
+      name: i18n.lex("verb.shield"), key: s.shieldKey, unlocked: s.shieldUnlocked,
+      cooldown: s.shieldCooldown, cooldownMax: s.shieldCooldownMax,
+      flash: s.shieldFlash, litUp: s.shieldActive > 0
     });
   }
 
@@ -256,9 +273,13 @@ export function createHud(font, i18n) {
     if (font) font.draw(ctx, label, x, y, SLOT_ACCENT, 2);
   }
 
+  /* y 28 -> 56: rozet fiil yuvasinin TAM ICINDE duruyordu (yuva x'i
+   * VIEW_W-122..VIEW_W-6, rozet x'i VIEW_W-16). v0'da debt hep 0 oldugu icin
+   * cakisma hic EKRANA gelmedi, ama yuva 2 satirdan 3'e cikinca sessiz hata
+   * daha da derinlesirdi — yuvanin altina alindi (yuva y 4..53'te biter). */
   function drawDebtBadge(ctx, debt) {
     if (debt <= 0) return;
-    const x = VIEW_W - 16, y = 28;
+    const x = VIEW_W - 16, y = 56;
     ctx.fillStyle = "#ff3e7a";
     ctx.fillRect(x, y, 8, 8);
     if (font) font.draw(ctx, String(debt), x + 10, y - 1, SLOT_LIGHT, 1);

@@ -38,8 +38,9 @@ export default {
     sent: "Added to the list.",
     sendFailed: "Could not send, kept on this device.",
     runAbort: "Press L to drop the run.",
-    verb: { rewrite: "ADD GROUND", shoot: "SHOOT" },
+    verb: { rewrite: "ADD GROUND", shoot: "SHOOT", shield: "SHIELD" },
     pip: { trail: "STURDY GROUND" },
+    keyShield: "C",
     f1seal: "F1 83.81%", ghost: "YOUR OLD SELF"
   },
   controls: [
@@ -47,6 +48,7 @@ export default {
     "SPACE, W or UP: jump",
     "J or SHIFT: shoot, hold it too long and it jams",
     "Q: lay ground ahead (while on the ground)",
+    "C: raise a shield (20s cooldown)",
     "P or ESC: pause",
     "M: map and stage select, T: touch"
   ],
@@ -132,10 +134,14 @@ export default {
     { id: "rewrite", name: "ADD GROUND", locked: "?", seal: "New skill: press Q to lay ground." },
     { id: "shell", name: "SHOOT", locked: "?", seal: "New skill: press J to shoot." },
     { id: "split", name: "SPLIT", locked: "?", seal: null },
-    { id: "seal", name: "SEAL", locked: "?", seal: null },
+    { id: "seal", name: "SHIELD", locked: "?", seal: "New skill: press C to raise a shield." },
     { id: "hook", name: "HOOK", locked: "?", seal: null },
     { id: "prefilter", name: "FILTER", locked: "?", seal: null },
-    { id: "trail", name: "STURDY GROUND", locked: "?", seal: "The ground you lay fades much slower." },
+    /* Not spawned in v0 — SHIELD took its place (see verbs.js deviation 4).
+     * `seal` is null so the prose budget counts only reachable lines. The old
+     * line, if it is ever brought back:
+     *   "The ground you lay fades much slower." */
+    { id: "trail", name: "STURDY GROUND", locked: "?", seal: null },
     { id: "anchor", name: "ANCHOR", locked: "?", seal: null },
     { id: "second", name: "SECOND CHANCE", locked: "?", seal: null },
     { id: "fork", name: "FORK", locked: "?", seal: null },

@@ -1,10 +1,10 @@
 /* ==========================================================================
- * game/verbs.js — ZEMİN YAP (Q) + ATEŞ ET (J), AYRI TUSLAR
+ * game/verbs.js — ZEMİN YAP (Q) + ATEŞ ET (J) + KALKAN (C), AYRI TUSLAR
  * ==========================================================================
  *
  * Kaynak: docs/oyun-v0-kapsam.md §7.1-§7.2.
  *
- * UC SAPMA (ucu de oyun testiyle geldi, acikca isaretli):
+ * DORT SAPMA (dordu de oyun testiyle geldi, acikca isaretli):
  *
  * 1) TUS AYRIMI. Kitap "TEK BUTON" diyordu ve hangi fiilin calisacagini
  *    `contextResolve()` seciyordu. Pratikte cozulemedi: ayni tus hem dovuste
@@ -29,6 +29,18 @@
  *    sifira soguyunca yeniden ates alir. Susturma/hasar sozlesmesi DEGISMEDI,
  *    yalniz "ne kadar UZUN sureyle" ates edebilecegine bir sinir geldi.
  *
+ * 4) SAĞLAM ZEMİN -> KALKAN. Ucuncu pip eskiden "SAĞLAM ZEMİN"di: konan
+ *    karonun omrunu uzatiyordu. Pasif bir istatistik artisiydi — oyuncu onu
+ *    aldigi an hicbir sey YAPMIYOR, sadece sayilar degisiyordu; alindigi
+ *    fark bile edilmiyordu. Yerine BASILABILIR bir savunma geldi: KALKAN (C)
+ *    baktigin yone YARIM DAIRE acar ve o alana giren DUSMAN MERMILERINI yok
+ *    eder. 10 saniyelik bekleme suresi bunu "surekli acik tut" olmaktan
+ *    cikarir — ne zaman acacagin gercek bir karardir (bir yagmur dalgasi
+ *    tam ustune gelirken mi, patronun salvosunda mi).
+ *    SAĞLAM ZEMİN kodu SILINMEDI (setTrail/REWRITE_DECAY_FRAMES_TRAIL yerinde
+ *    duruyor), yalnizca artik hicbir dunyada DOGMUYOR — ileride geri
+ *    getirilmek istenirse tek yapilacak sey pip'i tekrar yerlestirmek.
+ *
  * ZEMİN YAP: YERDEYKEN onundeki TAM BIR TILE'lik hucreye (16 px) zemin
  * karosu koyar — yalnizca hucre BOSSA. Havada hicbir sey yapmaz (yoksa
  * oyuncu kendi etrafina duvar/tavan orup kapanabiliyordu). 7 karede bir,
@@ -51,11 +63,18 @@
  *   import { createVerbSystem, VERB } from "./verbs.js";
  *
  *   const verbs = createVerbSystem();
- *   verbs.unlock(VERB.REWRITE); verbs.unlock(VERB.SHOOT);
+ *   verbs.unlock(VERB.REWRITE); verbs.unlock(VERB.SHOOT); verbs.unlock(VERB.SHIELD);
  *   verbs.isUnlocked(VERB.REWRITE) -> bool
- *   verbs.setTrail(bool)           -> SAĞLAM ZEMİN pip'i (karo omru uzar)
+ *   verbs.setTrail(bool)           -> SAĞLAM ZEMİN (v0'da hic dogmuyor, bkz. 4)
  *
  *   verbs.update(dt, body, ctrl, map, pool) -> void
+ *
+ *   verbs.shieldAbsorb(pool, body) -> n   KALKAN alanina giren dusman
+ *     mermilerini VE AVCI'lari yok eder, TOPLAM sayiyi doner (ayrimi
+ *     absorbedThisFrame / dispersedThisFrame verir). Zamanlayicilardan AYRI bir
+ *     cagri olmasi KASITLI: bu, dusmanlar HAREKET ETTIKTEN sonra ve
+ *     hazardHitTest'ten HEMEN ONCE calismali (bkz. boot.js sirasi), yoksa
+ *     ayni karede kalkanin icine giren bir mermi once oyuncuya deger.
  *
  *   verbs.targetCell(body, map) -> {tx,ty,blocked,ok}  karonun konacagi hucre
  *                                  (boot.js onizleme isaretini BUNDAN cizer)
@@ -65,16 +84,21 @@
  *   verbs.fireHeat / fireHeatMax -> ATEŞ ET isi metresi (0..fireHeatMax)
  *   verbs.jammed            -> tavana vurup TUTUKLUK yapti mi
  *   verbs.justJammed        -> bu karede TUTUKLUK BASLADI mi (ses icin)
+ *   verbs.shieldActive      -> KALKAN acik mi (>0 ise kalan kare)
+ *   verbs.shieldCooldown / shieldCooldownMax -> KALKAN beklemesi
+ *   verbs.shieldRadius      -> yarim dairenin yaricapi (boot.js BUNDAN cizer)
+ *   verbs.raisedThisFrame   -> bu karede KALKAN acildi mi (ses icin)
  *   verbs.placedThisFrame   -> bu karede karo kondu mu (ses icin)
  *   verbs.firedThisFrame    -> bu karede mermi cikti mi (ses icin)
- *   verbs.wastedGround / wastedVerb    -> sonucsuz basis (HUD flasi)
+ *   verbs.wastedGround / wastedVerb / wastedShield -> sonucsuz basis (HUD flasi)
  * ========================================================================== */
 
 import { TILE } from "./scale.js";
 import { F_SOLID, F_TEMP } from "./tilemap.js";
-import { spawnBolt } from "./enemies.js";
+import { spawnBolt, TYPE } from "./enemies.js";
+import { FLAG_HAZARD } from "./entities.js";
 
-export const VERB = Object.freeze({ NONE: 0, REWRITE: 1, SHOOT: 2, MERGE: 3 });
+export const VERB = Object.freeze({ NONE: 0, REWRITE: 1, SHOOT: 2, MERGE: 3, SHIELD: 4 });
 
 const REWRITE_HOLD_INTERVAL = 7;      /* kare basina 1 tile, basili tutulursa */
 const REWRITE_MAX_TILES = 5;
@@ -111,6 +135,20 @@ const FIRE_HEAT_PER_SHOT = 16;         /* ~7 atista tavan (~1,7 sn surekli ates)
 const FIRE_HEAT_COOL_PER_FRAME = 0.4;  /* tetik BIRAKILINCA soguma */
 const FIRE_JAM_COOL_PER_FRAME = 1.1;   /* TUTUKLUK sirasinda ZORLA havalanma — ~1,5 sn */
 
+/* KALKAN. Bekleme suresi 20 saniye (1200 kare) KASITLI olarak uzun: kalkan
+ * "surekli acik tutulan" bir sey olursa gokten mermi yagmuru da patron
+ * salvosu da tehdit olmaktan cikar. 20 saniyede bir TEK bir dalgayi yutmak
+ * ya da TEK bir avciyi dagitmak, "bunu nereye saklayayim" sorusunu gercek
+ * bir karar yapar. (10 sn ile basladi; kalkan AVCI'yi da oldurur hale
+ * gelince — asagiya bkz. — guc seviyesi ikiye katlandigi icin bekleme de
+ * ikiye katlandi.)
+ * Acik kalma suresi (48 kare / 0,8 s) bir yagmur dalgasinin inisini
+ * (~29 kare, bkz. boot.js RAIN_VY) rahatca ortecek kadar uzun, iki dalgayi
+ * birden ortmeyecek kadar kisa. */
+const SHIELD_ACTIVE_FRAMES = 48;
+const SHIELD_COOLDOWN_FRAMES = 1200;
+const SHIELD_RADIUS = 40;              /* yarim dairenin yaricapi (px) */
+
 export function createVerbSystem() {
   let unlockedMask = 0;   /* bit0 REWRITE, bit1 SHOOT — save.js ile ayni sira */
 
@@ -131,6 +169,14 @@ export function createVerbSystem() {
   let fireHeat = 0;
   let jammed = false;
   let justJammed = false;   /* bu karede TUTUKLUK BASLADI mi (ses icin) */
+
+  /* KALKAN durumu */
+  let shieldActive = 0;      /* >0 ise acik, kalan kare */
+  let shieldCooldown = 0;
+  let raisedThisFrame = false;
+  let wastedShield = false;  /* C'ye basildi ama kalkan hazir degil */
+  let absorbedThisFrame = 0;   /* bu karede yutulan MERMI sayisi */
+  let dispersedThisFrame = 0;  /* bu karede dagitilan AVCI sayisi (ayri ses) */
 
   let active = VERB.NONE;
   let lastUsed = VERB.NONE;
@@ -291,21 +337,97 @@ export function createVerbSystem() {
     if (fireHeat >= FIRE_HEAT_MAX) { jammed = true; justJammed = true; }
   }
 
+  /* KALKAN: tek kapi bekleme suresidir. Basili tutmanin bir anlami YOK
+   * (kenar tetikli) — kalkan bir DURUM degil, bir ANDIR; "tut ve guvende ol"
+   * olsaydi 10 saniyelik bekleme de anlamsiz kalirdi. */
+  function updateShield(ctrl) {
+    if (shieldActive > 0) shieldActive--;
+    if (shieldCooldown > 0) shieldCooldown--;
+    if (!ctrl.shieldPressed) return;
+    if (shieldCooldown > 0 || shieldActive > 0) { wastedShield = true; return; }
+    shieldActive = SHIELD_ACTIVE_FRAMES;
+    shieldCooldown = SHIELD_COOLDOWN_FRAMES;
+    raisedThisFrame = true;
+    lastUsed = VERB.SHIELD;
+  }
+
+  /* Yarim daire testi: govde merkezinden SHIELD_RADIUS icinde VE bakilan
+   * yonun tarafinda. Iki kosul da tek yerde durur ki cizim (boot.js) ile
+   * yakalama AYNI geometriden beslensin — kalkanin gorundugu yer ile
+   * korudugu yer birbirinden kayamaz. */
+  function shieldCovers(body, px, py) {
+    if (shieldActive <= 0) return false;
+    const cx = body.x + body.w * 0.5, cy = body.y + body.h * 0.5;
+    const dx = px - cx, dy = py - cy;
+    if (dx * dx + dy * dy > SHIELD_RADIUS * SHIELD_RADIUS) return false;
+    return dx * (body.facing < 0 ? -1 : 1) >= 0;
+  }
+
+  /* KALKAN'in yuttugu kume: UCAN MERMILER + AVCI.
+   *
+   * "Mermi" tanimi UYDURULMAZ, enemies.js'ten alinir: boltHitTest'in havada
+   * vurulup dusurulebilir saydigi kume TAM OLARAK {SHARD, TOKEN}'dir. Ilk
+   * yazimda burada yalniz SHARD vardi — BORU AĞZI'nin TOKEN'i (FLAG_HAZARD,
+   * ucar, zaten mermiyle dusurulebilir) kalkandan SIZIYORDU; oyuncunun
+   * gozunde ikisi de "ustume gelen mermi" oldugu icin bu tutarsizlik
+   * "kalkan calismiyor" olarak okunurdu.
+   *
+   * AVCI (hayalet) SONRADAN eklendi. Ilk tasarimda disariday di ve gerekcesi
+   * suydu: "govde temasini da kesersen kalkan 0,8 sn dokunulmazliga doner ve
+   * D-2'nin 'temas GERI AL'dir' sozlesmesi delinir". O gerekce AVCI icin
+   * gecerliligini kaybediyor, cunku AVCI zaten OLDURULEBILIR bir tehdit
+   * (mermiyle canini indiriyorsun) — yani kalkan ona karsi yeni bir SINIF
+   * degil, ayni ise ikinci bir arac. Sozlesme de delinmiyor: kalkan YARIM
+   * daire oldugu icin ARKANDAN gelen avci hala GERI AL'dir, yani
+   * "dokunulmazlik" degil YONLU bir savunma. ZİL suru ve durgun dusman
+   * govdeleri (DÜĞÜM, TALİMAT, BORU AĞZI) HALA yutulmaz — onlar oldurulen
+   * degil KACINILAN/SUSTURULAN seyler.
+   *
+   * AVCI tek vurusta dagitilir (canina bakilmaz): 20 saniyelik bekleme
+   * suresi zaten bunun bedelidir, ustune "yarim avci kaldi" durumu
+   * eklemek okunmaz olurdu.
+   *
+   * pool.free() forEachActive icinde GUVENLI: tarama id'yi 0..n gezer ve
+   * bayragi her adimda yeniden okur (bkz. entities.js; boltHitTest de ayni
+   * seyi yapiyor). */
+  function isProjectile(t) { return t === TYPE.SHARD || t === TYPE.TOKEN; }
+
+  function shieldAbsorb(pool, body) {
+    absorbedThisFrame = 0;
+    dispersedThisFrame = 0;
+    if (shieldActive <= 0 || !pool || !body) return 0;
+    pool.forEachActive((id) => {
+      const t = pool.type[id];
+      const isHunter = t === TYPE.HUNTER;
+      if (!isProjectile(t) && !isHunter) return;
+      if (!(pool.flags[id] & FLAG_HAZARD)) return;
+      if (!shieldCovers(body, pool.x[id], pool.y[id])) return;
+      pool.free(id);
+      if (isHunter) dispersedThisFrame++; else absorbedThisFrame++;
+    });
+    return absorbedThisFrame + dispersedThisFrame;
+  }
+
   function setTrail(on) { trailActive = !!on; }
 
   function update(dt, body, ctrl, map, pool) {
     lastMap = map;
     wastedGround = false;
     wastedVerb = false;
+    wastedShield = false;
     placedThisFrame = false;
     firedThisFrame = false;
     justJammed = false;
+    raisedThisFrame = false;
 
     if (isUnlocked(VERB.REWRITE)) updateRewrite(dt, body, ctrl, map);
     else if (ctrl.groundPressed) wastedGround = true;   /* henuz acilmadi */
 
     if (isUnlocked(VERB.SHOOT)) updateShoot(dt, body, ctrl, pool);
     else if (ctrl.verbPressed) wastedVerb = true;
+
+    if (isUnlocked(VERB.SHIELD)) updateShield(ctrl);
+    else if (ctrl.shieldPressed) wastedShield = true;
 
     active = resolveActive();
     /* Erime her kare, HER kosulda isler — patron dovusunde de. Aksi halde
@@ -321,13 +443,18 @@ export function createVerbSystem() {
     for (let k = 0; k < MAX_PENDING; k++) clearSlot(lastMap, k);
     fireCooldown = 0;
     fireHeat = 0; jammed = false; justJammed = false;
+    /* KALKAN beklemesi de sifirlanir: GERI AL'dan sonra "kalkanim yoktu"
+     * diye ikinci bir ceza odemek D-1/D-4'e aykiri olurdu. */
+    shieldActive = 0; shieldCooldown = 0;
+    raisedThisFrame = false; wastedShield = false;
+    absorbedThisFrame = 0; dispersedThisFrame = 0;
     active = VERB.NONE; lastUsed = VERB.NONE;
     wastedGround = false; wastedVerb = false;
     placedThisFrame = false; firedThisFrame = false; trailActive = false;
   }
 
   return {
-    unlock, isUnlocked, update, reset, setTrail, targetCell,
+    unlock, isUnlocked, update, reset, setTrail, targetCell, shieldAbsorb,
     get active() { return active; },
     get lastUsed() { return lastUsed; },
     get meter() { return meter; },
@@ -338,6 +465,15 @@ export function createVerbSystem() {
     get fireHeatMax() { return FIRE_HEAT_MAX; },
     get jammed() { return jammed; },
     get justJammed() { return justJammed; },
+    get shieldActive() { return shieldActive; },
+    get shieldActiveMax() { return SHIELD_ACTIVE_FRAMES; },
+    get shieldCooldown() { return shieldCooldown; },
+    get shieldCooldownMax() { return SHIELD_COOLDOWN_FRAMES; },
+    get shieldRadius() { return SHIELD_RADIUS; },
+    get raisedThisFrame() { return raisedThisFrame; },
+    get absorbedThisFrame() { return absorbedThisFrame; },
+    get dispersedThisFrame() { return dispersedThisFrame; },
+    get wastedShield() { return wastedShield; },
     get wastedGround() { return wastedGround; },
     get wastedVerb() { return wastedVerb; },
     get placedThisFrame() { return placedThisFrame; },

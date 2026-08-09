@@ -88,8 +88,10 @@ function drawHealthBar(ctx, palette, sx, sy, hp, hpMax, shielded, segWidth) {
  * KALKANLIDIR — yani "seni okurken ona zarar veremezsin". Oyuncunun isi
  * boylece net bir dongu olur: konilerden cik, avciyi vur, patrona ates et.
  *
- * Faz 2 (can yariya inince): koni sayisi 3'ten 2'ye duser ama tarama
- * HIZLANIR ve ZIL suru yagmuru eklenir (eski Faz 2 ile ayni bilesenler).
+ * Faz 2 (can yariya inince): tarama HIZLANIR, kilit suresi KISALIR ve ZIL
+ * suru yagmuru eklenir. (Koni sayisi eskiden burada 3'ten 2'ye duserdi; oyun
+ * testi 3 radari "okunamayacak kadar kalabalik" buldugu icin iki faz da 2
+ * koniyle oynanir — bkz. makeConeSet.)
  * ========================================================================== */
 
 const SN_HP_MAX = 20;
@@ -106,7 +108,11 @@ const SN_CONE_DEG = 50;
 const SN_LOCK_P1 = 48, SN_LOCK_P2 = 36;
 const SN_CONE_COOLDOWN = 120;
 const SN_HUNTER_CAP = 2;   /* 3 avci ayni anda okunamiyordu (bot testi) */
-const SN_ROT_MS_P1 = 4200, SN_ROT_MS_P2 = 3000;
+/* 4200/3000 -> 6000/4200: oyun testi — tarama gozle takip edilemeyecek kadar
+ * hizli donuyordu; oyuncu koninin NEREDEN gelecegini onceden okuyamiyor,
+ * yalnizca tepki verebiliyordu. Yavas donus radari bir TEHDIT SAATINE
+ * cevirir: nereye kacacagina koni sana varmadan karar verirsin. */
+const SN_ROT_MS_P1 = 6000, SN_ROT_MS_P2 = 4200;
 
 const CONE_IDLE = 0, CONE_LOCK = 1;
 
@@ -114,21 +120,29 @@ function makeCone(offsetAngle) {
   return { offsetAngle, state: CONE_IDLE, timer: 60 + ((offsetAngle * 137) % 40 | 0), lockTotal: SN_LOCK_P1 };
 }
 
+/* IKI KONI, TEK YERDEN (oyun testi: "3 radar cok"). Koni takimi daha once UC
+ * ayri satirda kuruluyordu (kurulus, faz 2, reset) — sayi degistirmek uc yeri
+ * birden tutturmayi gerektiriyordu ve biri unutulursa dovus faza gore SESSIZCE
+ * baska bir sayiyla oynanirdi. Tek kaynak: 2 koni, 180 derece karsilikli.
+ * Tam donus (bkz. rotPeriod notu) sayidan bagimsiz her aciyi tarar, yani 2
+ * koni "kor bolge" YARATMAZ — sadece ayni acinin taranma sikligini dusurur. */
+function makeConeSet() { return [makeCone(0), makeCone(Math.PI)]; }
+
 export function createSniffer(x, y, pool, balanced) {
   const cx = x, cy = y;
   let phase = SNIFFER_PHASE.ONE;
-  let cones = [makeCone(0), makeCone(2.09), makeCone(4.19)];
+  let cones = makeConeSet();
   let hp = SN_HP_MAX;
   let elapsedMs = 0;
   let bellId = -1;
   let defeated = false;
   let blockFlash = 0, hitFlash = 0;
 
-  /* TAM 360 DERECE DONEN TARAMA (radar). Kucuk bir salinim, koni sayisi
-   * 3'ten 2'ye dustugunde CEMBERIN YARISINI HIC TARAMAZ ve oyuncu o "kor
-   * bolge"de kalirsa patron hicbir zaman saldirmaz (node testiyle yakalanan
-   * gercek bir kilitlenme riski). Sabit hizli tam donus, kac koni olursa
-   * olsun eninde sonunda HER aciyi tarar. */
+  /* TAM 360 DERECE DONEN TARAMA (radar). Kucuk bir salinim, 2 koniyle
+   * CEMBERIN YARISINI HIC TARAMAZ ve oyuncu o "kor bolge"de kalirsa patron
+   * hicbir zaman saldirmaz (node testiyle yakalanan gercek bir kilitlenme
+   * riski). Sabit hizli tam donus, kac koni olursa olsun eninde sonunda HER
+   * aciyi tarar — konileri 2'ye dusurmek bu yuzden guvenli. */
   function rotPeriod() { return phase === SNIFFER_PHASE.TWO ? SN_ROT_MS_P2 : SN_ROT_MS_P1; }
   let rotAngle = 0;
   function coneAngle(cone) { return cone.offsetAngle + rotAngle; }
@@ -219,7 +233,12 @@ export function createSniffer(x, y, pool, balanced) {
     }
     if (phase === SNIFFER_PHASE.ONE && hp <= SN_PHASE2_AT) {
       phase = SNIFFER_PHASE.TWO;
-      cones = [makeCone(0), makeCone(3.14)];
+      /* Koni SAYISI artik iki fazda da ayni (bkz. makeConeSet). Bu satir yine
+       * de duruyor cunku isi sayiyi degistirmek DEGIL, faz esiginde koni
+       * durumunu SIFIRLAMAK: devam eden bir kilit iptal olur, oyuncu yeni
+       * faza temiz bir sayfayla girer. Faz 2'nin farki artik hizli donus +
+       * kisa kilit + ZİL suru yagmuru. */
+      cones = makeConeSet();
       if (pool) bellId = spawnEnemy(pool, TYPE.BELL, cx, cy - 20, {});
       return "phase";
     }
@@ -305,7 +324,7 @@ export function createSniffer(x, y, pool, balanced) {
     if (defeated) return;
     hp = SN_HP_MAX;
     phase = SNIFFER_PHASE.ONE;
-    cones = [makeCone(0), makeCone(2.09), makeCone(4.19)];
+    cones = makeConeSet();
     rotAngle = 0;
     blockFlash = 0; hitFlash = 0;
     elapsedMs = 0;
@@ -356,7 +375,11 @@ const OV_RECOVER = 45;
 const OV_ENGAGE_RANGE = 300;
 const OV_RAIN_COLS_P1 = 7, OV_RAIN_COLS_P2 = 9;
 const OV_RAIN_STEP = 5;                /* iki damla arasi kare */
-const OV_RAIN_VY = 1.2, OV_RAIN_GRAV = 0.10, OV_RAIN_HEIGHT = 210;
+/* DUSUS HIZI: boot.js'in RAIN_VY/RAIN_GRAV'i ile AYNI deger (1,2/0,10 ->
+ * 3,0/0,26). Uc "isaretli yere mermi" sistemi de (bu, AYNA'nin GÖKTEN AĞ'i,
+ * W6 koridoru) ayni fizigi paylasir — oyuncu bir kez ogrendigi dusus hizini
+ * her ucunde ayni okur. 210 px artik ~30 karede (0,50 s) iniliyor. */
+const OV_RAIN_VY = 3.0, OV_RAIN_GRAV = 0.26, OV_RAIN_HEIGHT = 210;
 const OV_VOLLEY_P1 = 3, OV_VOLLEY_P2 = 4;
 const OV_VOLLEY_SPEED = 3.0;
 const OV_VOLLEY_DY = [-34, -18, -2, 10];
@@ -710,7 +733,11 @@ const MR_DASH_MIN_TRAVEL = 90;          /* bu kadar yol yoksa karsi tarafa kosar
 const MR_NET_COLS = [0, 6, 7];          /* faz 1'de bu kalip yok */
 const MR_NET_STEP = 4;
 const MR_NET_WAVE_B = 46;
-const MR_NET_HEIGHT = 180, MR_NET_VY = 1.2, MR_NET_GRAV = 0.10;
+/* Dusus hizi OV_RAIN ile ayni (bkz. oradaki not) — 180 px ~27 karede iner.
+ * NOT: A dalgasi artik B dalgasi baslamadan (46. kare) yere varir; eskiden
+ * ikisi havada bir an ust uste biniyordu. Kalibin ozu DEGISMEDI — iki dalga
+ * FARKLI sutunlari bos birakir, yani hala iki kez okuma gerektirir. */
+const MR_NET_HEIGHT = 180, MR_NET_VY = 3.0, MR_NET_GRAV = 0.26;
 
 /* ÇAĞRI */
 const MR_SUMMON_COUNT = 2;

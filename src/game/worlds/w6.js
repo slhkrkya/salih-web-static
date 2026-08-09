@@ -200,10 +200,19 @@ export function buildWorld6() {
     x0: sXRain.x0 * TILE,
     x1: sXRain.x1 * TILE,
     groundY: lb.curFloorY * TILE,
-    /* Bes sutun, 5 tile arayla. Her dalgada sutunlarin YARISI duser (boot.js
-     * donusumlu secer), yani her zaman gecilecek bir yol vardir — ezber degil
-     * OKUMA sinavi. Dusen mermi havada VURULABILIR (boltHitTest "shot-down"). */
-    cols: [3, 8, 13, 18, 23].map((i) => (sXRain.x0 + i) * TILE + TILE * 0.5)
+    /* DOKUZ sutun, 3 tile arayla (eskiden bes sutun, 5 tile arayla — oyun
+     * testi "cok kolay" buldu: her dalgada yalnizca 3 cizgi duser ve aradaki
+     * guvenli seritler 160 px'ti, yani neredeyse hicbir yere BAKMADAN
+     * gecilebiliyordu).
+     *
+     * ADALET AYNEN KORUNUR — sikilastirma yalniz seridi daraltir, kapatmaz:
+     * boot.js her dalgada sutunlarin YARISI'ni donusumlu sectigi icin
+     * KOMSU IKI SUTUN AYNI DALGADA ASLA birlikte dusmez. Cift dalgalarda 5
+     * cizgi (1,7,13,19,25), tek dalgalarda 4 cizgi (4,10,16,22) iner ve iki
+     * durumda da guvenli serit 6 tile = 96 px kalir — govde 8 px, yani
+     * gecilecek yol HER ZAMAN var, ama artik gercekten NISAN ALARAK.
+     * Dusen mermi havada VURULABILIR (boltHitTest "shot-down"). */
+    cols: [1, 4, 7, 10, 13, 16, 19, 22, 25].map((i) => (sXRain.x0 + i) * TILE + TILE * 0.5)
   });
   const sXAfterRain = lb.pushFlat(8);
   commitStones.push((sXAfterRain.x0 + 1) * TILE);

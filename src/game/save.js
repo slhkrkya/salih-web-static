@@ -26,9 +26,14 @@
 export const KEY = "sk.override.v1";
 export const CURRENT_VERSION = 1;
 
-/* Bit sirasi kitaptan aynen (§7.1, §7.3). v0'da yalniz alt bitler dolar. */
+/* Bit sirasi kitaptan aynen (§7.1, §7.3). v0'da yalniz alt bitler dolar.
+ * SEAL (bit 3) v0'da KALKAN yetenegine ayrildi: hud.js PIP_ORDER'daki 3.
+ * yuva ("seal"/MÜHÜR) zaten bostu ve semantigi ("gecirmez") kalkanla birebir
+ * ortusuyor — SEMA DEGISMEDI, yalnizca bos duran bir bit DOLDURULDU.
+ * TRAIL (bit 6) yerinde duruyor ama v0'da hicbir dunyada DOGMUYOR (bkz.
+ * verbs.js sapma 4) — ileride geri getirilebilsin diye bit ayrilmis kalir. */
 export const VERB_BIT = Object.freeze({ REWRITE: 0, SHELL: 1 });
-export const PIP_BIT = Object.freeze({ REWRITE: 0, SHELL: 1, TRAIL: 6 });
+export const PIP_BIT = Object.freeze({ REWRITE: 0, SHELL: 1, SEAL: 3, TRAIL: 6 });
 
 export function defaultSave() {
   return {

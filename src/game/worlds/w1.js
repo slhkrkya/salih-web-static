@@ -20,7 +20,7 @@
  *   import { buildWorld1 } from "./worlds/w1.js";
  *   const { map, labels, spawnX, spawnY, enemySpawns, pipSpawns, hazards,
  *           segments, bossTriggerX, exitX, ghostChaseStartX } = buildWorld1();
- *     pipSpawns   : [{ x, y, id: "rewrite"|"shell"|"trail" }]
+ *     pipSpawns   : [{ x, y, id: "rewrite"|"shell"|"seal" }]
  *     hazards.pushWall : F1'in HOT-RELOAD C-sinifi dalgasi (temasta REVERT —
  *                        W0'in cezasiz dalgasindan farkli, boot.js hazardHitTest
  *                        gibi ele alir, itmez)
@@ -195,7 +195,12 @@ export function buildWorld1() {
    * ust uste binmesin diye ateş tabelasindan 18 tile ileride. */
   lb.label(sHall.x0 + 18, "İleride bir yetenek kutusu var", "There is a skill pickup ahead");
   const sPip7 = lb.pushFlat(4);
-  pipSpawns.push({ x: (sPip7.x0 + 2) * TILE, y: lb.curFloorY * TILE - 16, id: "trail" });
+  /* Ucuncu kutu SAĞLAM ZEMİN'di (konan karonun omrunu uzatan pasif bir
+   * artis); alindigi bile fark edilmiyordu. Yerine KALKAN kondu — ayni yer,
+   * ayni tabela ("İleride bir yetenek kutusu var"), ama artik BASILABILIR
+   * bir yetenek. SAĞLAM ZEMİN'in kodu silinmedi, sadece artik dogmuyor
+   * (bkz. verbs.js sapma 4). */
+  pipSpawns.push({ x: (sPip7.x0 + 2) * TILE, y: lb.curFloorY * TILE - 16, id: "seal" });
   padTo(lb, eStart, 118);
   segments.push({ id: "e1", tileCount: lb.cursor - eStart, topSpeedTilePerSec: TOP_SPEED_TILE_PER_SEC });
 

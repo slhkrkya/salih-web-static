@@ -91,13 +91,14 @@ export function createInput(opts) {
 
   /* Ham durum: yon tuslari ayri tutulur ki ikisi birden basiliyken
    * "son basilan kazanir" davranisi verilebilsin (Mario grameri). */
-  const key = { left: false, right: false, jump: false, verb: false, ground: false };
+  const key = { left: false, right: false, jump: false, verb: false, ground: false, shield: false };
   let lastDir = 0;
 
   /* Edge latch'leri. consumeEdges() bunlari SIFIRLAR. */
   let jumpEdge = false;
   let verbEdge = false;
   let groundEdge = false;
+  let shieldEdge = false;
 
   /* Dokunmatik: aktif pointer id'leri ve sanal tus durumlari. */
   const touch = { left: false, right: false, jump: false, verb: false, ground: false };
@@ -143,6 +144,13 @@ export function createInput(opts) {
     ctrl.verbPressed = verbEdge ? 1 : 0;
     ctrl.groundDown = (key.ground || touch.ground) ? 1 : 0;
     ctrl.groundPressed = groundEdge ? 1 : 0;
+    /* KALKAN yalniz KLAVYEDE: dokunmatik yerlesimi (§4.9) UC butonla dolu ve
+     * VIEW_H'ye dorduncu bir 64 px'lik buton SIGMIYOR (10+64*4+10*3 > 272).
+     * Butonlari kucultup sigdirmak "min 44 px" sozlesmesini riske atardi;
+     * KALKAN ilerleme icin ZORUNLU olmadigindan (savunma araci, kapi acmaz)
+     * dokunmatik oyuncu onsuz da oyunu bitirebilir. */
+    ctrl.shieldDown = key.shield ? 1 : 0;
+    ctrl.shieldPressed = shieldEdge ? 1 : 0;
   }
 
   /* ----------------------------------------------------------- klavye */
@@ -171,6 +179,13 @@ export function createInput(opts) {
       case "KeyQ":
         if (!key.ground) groundEdge = true;
         key.ground = true;
+        break;
+      /* KALKAN kendi tusunda (C). Basili tutmanin anlami yok (verbs.js yalniz
+       * shieldPressed'i okur) ama seviye durumu yine de tutuluyor: tus
+       * birakilmadan ikinci bir kenar uretilmesin. */
+      case "KeyC":
+        if (!key.shield) shieldEdge = true;
+        key.shield = true;
         break;
       case "KeyP":
         if (o.onPause) o.onPause();
@@ -215,6 +230,7 @@ export function createInput(opts) {
       case "Space": case "ArrowUp": case "KeyW": key.jump = false; break;
       case "ShiftLeft": case "ShiftRight": case "KeyJ": key.verb = false; break;
       case "KeyQ": key.ground = false; break;
+      case "KeyC": key.shield = false; break;
       default: return;
     }
     recompute();
@@ -325,16 +341,18 @@ export function createInput(opts) {
     jumpEdge = false;
     verbEdge = false;
     groundEdge = false;
+    shieldEdge = false;
     ctrl.jumpPressed = 0;
     ctrl.verbPressed = 0;
     ctrl.groundPressed = 0;
+    ctrl.shieldPressed = 0;
   }
 
   function reset() {
-    key.left = key.right = key.jump = key.verb = key.ground = false;
+    key.left = key.right = key.jump = key.verb = key.ground = key.shield = false;
     touch.left = touch.right = touch.jump = touch.verb = touch.ground = false;
     pointers.clear();
-    jumpEdge = verbEdge = groundEdge = false;
+    jumpEdge = verbEdge = groundEdge = shieldEdge = false;
     lastDir = 0;
     recompute();
   }
