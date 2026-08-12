@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://salihkarakaya.com.tr/sitemap-index.xml
+Sitemap: https://salihkarakaya.com/sitemap-index.xml
